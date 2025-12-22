@@ -42,7 +42,7 @@
         console.debug('App: не удалось подготовить список банков', error); // Сообщаем в debug для диагностики
       }); // Завершаем обработку ошибок
 
-    lazyLoadBackground(); // Асинхронно догружаем фоновую картинку после первого кадра
+    lazyLoadBackground(); // Догружаем фоновую картинку сразу, чтобы она подхватилась как только загрузится
   }); // Завершаем обработчик DOMContentLoaded
 
   function renderBanks(banks, container, telegramContext, transferId, linkCache, requestLinksOnce) { // Создаём кнопки для каждого банка
@@ -72,8 +72,8 @@
       icon.alt = bank.title; // Добавляем альтернативный текст
       icon.loading = 'lazy'; // Разрешаем браузеру отложенную загрузку
       icon.decoding = 'async'; // Просим асинхронное декодирование для быстрого первого кадра
-      icon.width = 40; // Фиксируем ширину, чтобы вёрстка не прыгала
-      icon.height = 40; // Фиксируем высоту, чтобы зарезервировать место
+      icon.width = 32; // Уменьшаем ширину логотипа на 20%, чтобы он стал компактнее
+      icon.height = 32; // Ставим ту же высоту для сохранения пропорций и компактности
       icon.addEventListener('load', function () { // Когда логотип загрузился
         iconWrapper.classList.add('bank-icon--ready'); // Помечаем, что можно показывать картинку
       }); // Завершаем обработчик загрузки
@@ -216,19 +216,18 @@
     return (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || defaultBase; // Возвращаем адрес из конфига или рассчитанный дефолт
   }
 
-  function lazyLoadBackground() { // Догружаем фоновую картинку после первого кадра, чтобы WKWebView не задерживал первый рендер
-    requestAnimationFrame(function () { // Ждём, пока браузер нарисует стартовый кадр
-      setTimeout(function () { // Переносим загрузку в конец очереди, чтобы не блокировать рендер
-        const version = (window.AppConfig && window.AppConfig.APP_ASSETS_VERSION) || (window.APP_ASSETS_VERSION || ''); // Берём версию ассетов для bust параметра
-        const bgUrl = './assets/bg/background.png' + (version ? '?v=' + version : ''); // Формируем URL фоновой картинки с версией
-        const img = new Image(); // Создаём объект Image для предзагрузки
-        img.onload = function () { // После успешной загрузки
-          document.body.style.setProperty('--app-bg-image', 'url(' + bgUrl + ')'); // Сохраняем URL в CSS-переменную
-          document.body.classList.add('bg-ready'); // Включаем слой с картинкой
-        }; // Завершаем обработчик onload
-        img.src = bgUrl; // Стартуем загрузку, записав src
-      }, 0); // Откладываем, чтобы успел случиться первый кадр
-    }); // Завершаем requestAnimationFrame
+  function lazyLoadBackground() { // Догружаем фоновую картинку сразу после старта, чтобы фон появлялся как только загрузится
+    const version = (window.AppConfig && window.AppConfig.APP_ASSETS_VERSION) || (window.APP_ASSETS_VERSION || ''); // Берём версию ассетов для bust параметра сразу
+    const bgUrl = './assets/bg/background.png' + (version ? '?v=' + version : ''); // Формируем URL фоновой картинки с версией без задержек
+    const img = new Image(); // Создаём объект Image для предзагрузки
+    img.onload = function () { // После успешной загрузки
+      document.body.style.setProperty('--app-bg-image', 'url(' + bgUrl + ')'); // Сохраняем URL в CSS-переменную, чтобы слой сразу стал валидным
+      document.body.classList.add('bg-ready'); // Включаем слой с картинкой, как только она декодировалась
+    }; // Завершаем обработчик onload
+    img.onerror = function () { // Если картинка не загрузилась
+      console.debug('App: не удалось загрузить фоновую картинку', bgUrl); // Сообщаем в debug, чтобы проще найти причину
+    }; // Завершаем обработчик ошибки
+    img.src = bgUrl; // Стартуем загрузку без задержек, чтобы фон появился сразу после готовности
   }
 
   function attachStretchEffect(listElement, buttonSelector) { // Добавляем "растяжку" списка при упоре
