@@ -80,7 +80,7 @@
     const safeId = encodeURIComponent(transferId || ''); // Экранируем transfer_id для URL
     const requestUrl = `${LINKS_BASE_URL}?transfer_id=${safeId}`; // Собираем путь запроса
 
-    return fetch(requestUrl, { method: 'GET', cache: 'no-cache' }) // Запрашиваем список ссылок
+    return fetch(requestUrl, { method: 'GET' }) // Запрашиваем список ссылок, позволяем браузеру использовать кэш
       .then(function (response) { // Ждём ответ
         if (!response.ok) { // Если пришла ошибка
           const responseError = new Error('Не удалось получить ссылки банка'); // Готовим ошибку для вызвавшего кода
@@ -104,7 +104,7 @@
   function fetchLinkByToken(token) { // Получаем deeplink и fallback по токену
     const requestUrl = `${LINKS_BASE_URL}/${encodeURIComponent(token || '')}`; // Формируем путь запроса
 
-    return fetch(requestUrl, { method: 'GET', cache: 'no-cache' }) // Запрашиваем данные по токену
+    return fetch(requestUrl, { method: 'GET' }) // Запрашиваем данные по токену, доверяя кэшу браузера
       .then(function (response) { // Обрабатываем ответ
         if (!response.ok) { // Если код не 2xx
           throw new Error('Не удалось найти токен ссылки'); // Выбрасываем исключение
