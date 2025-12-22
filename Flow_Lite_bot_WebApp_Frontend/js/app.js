@@ -9,27 +9,66 @@
     backButton.addEventListener('click', function () { // Навешиваем обработчик на кнопку возврата
       window.ApiClient.sendRedirectEvent(telegramContext, '', 'back_click', 'miniapp'); // Логируем клик по кнопке назад
       window.TelegramBridge.closeMiniApp(); // Корректно закрываем Mini App или возвращаемся назад
-    });
+    }); // Завершаем обработчик кнопки назад
 
     const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Забираем transfer_id для запроса ссылок
 
-    window.ApiClient.fetchBankLinks(transferId) // Запрашиваем готовые ссылки у backend
-      .then(function (links) { // После успешной загрузки
-        if (!links || !links.length) { // Если список пустой, включаем резервную загрузку
-          console.debug('App: backend вернул пустой список, используем fallback банки'); // Поясняем причину перехода на fallback
-          return renderFromFallback(bankListElement, telegramContext); // Переключаемся на запасные банки
-        }
-        renderBanks(links, bankListElement, telegramContext); // Рисуем кнопки банков
-        attachStretchEffect(bankListElement, '.btn'); // Добавляем эффект "растяжки" при прокрутке
-        preloadAssetsAndAnimate(links); // Предзагружаем ассеты и запускаем анимации
-        return null; // Возвращаем null, чтобы цепочка промисов считала работу завершённой
-      })
-      .catch(function (error) { // Если что-то пошло не так
-        console.debug('App: не удалось отрисовать банки', error); // Сообщаем об ошибке в debug
-        console.debug('App: переключаемся на fallback банки из-за ошибки запроса'); // Фиксируем причину показа запасного списка
-        renderFromFallback(bankListElement, telegramContext); // Пытаемся отрисовать запасной список
-      });
-  });
+    function loadLinks() { // Унифицированная функция загрузки списка банков
+      bankListElement.innerHTML = ''; // Очищаем контейнер перед новой загрузкой
+      window.ApiClient.fetchBankLinks(transferId) // Запрашиваем готовые ссылки у backend
+        .then(function (links) { // После успешной загрузки
+          if (!links || !links.length) { // Если список пустой, выводим сообщение об ошибке
+            const debugInfo = { // Готовим детали для логов
+              status: 'ok', // Указываем, что ответ пришёл корректно
+              statusText: 'empty links list', // Сообщаем, что список пустой
+              requestUrl: buildLinksRequestUrl(transferId) // Добавляем адрес запроса
+            }; // Завершаем объект деталей
+            console.debug('App: backend вернул пустой список, показываем сообщение', debugInfo); // Поясняем причину перехода к сообщению
+            return renderLoadError(bankListElement, loadLinks); // Показываем текст и кнопку Повторить
+          }
+          renderBanks(links, bankListElement, telegramContext); // Рисуем кнопки банков
+          attachStretchEffect(bankListElement, '.btn'); // Добавляем эффект "растяжки" при прокрутке
+          preloadAssetsAndAnimate(links); // Предзагружаем ассеты и запускаем анимации
+          return null; // Возвращаем null, чтобы цепочка промисов считала работу завершённой
+        })
+        .catch(function (error) { // Если что-то пошло не так
+          const debugInfo = { // Готовим данные для логирования
+            status: typeof error.status === 'undefined' ? 'unknown' : error.status, // Фиксируем статус ответа, если он есть
+            statusText: error.statusText || (error.message || 'unknown error'), // Сохраняем текст ошибки
+            requestUrl: error.requestUrl || buildLinksRequestUrl(transferId) // Сохраняем адрес запроса
+          }; // Завершаем объект диагностики
+          console.debug('App: не удалось загрузить список банков, показываем сообщение', debugInfo); // Сообщаем об ошибке в debug
+          renderLoadError(bankListElement, loadLinks); // Показываем текст и кнопку Повторить
+        }); // Завершаем цепочку обработки загрузки
+    }
+
+    loadLinks(); // Стартуем первую загрузку списка банков
+  }); // Завершаем обработчик DOMContentLoaded
+
+  function buildLinksRequestUrl(transferId) { // Формируем URL запроса ссылок для логирования
+    const safeId = encodeURIComponent(transferId || ''); // Экранируем transfer_id
+    const baseUrl = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || 'https://shadow-verification-acm-river.trycloudflare.com'; // Берём базовый адрес из конфигурации или дефолт
+    return `${baseUrl}/api/links?transfer_id=${safeId}`; // Собираем полный путь
+  }
+
+  function renderLoadError(container, retryHandler) { // Показываем сообщение об ошибке загрузки
+    container.innerHTML = ''; // Очищаем список банков
+
+    const text = document.createElement('p'); // Создаём элемент для текста ошибки
+    text.className = 'error-text'; // Назначаем класс для стилизации
+    text.textContent = 'Не удалось загрузить список банков. Проверьте интернет и попробуйте ещё раз.'; // Устанавливаем текст сообщения
+
+    const retryButton = document.createElement('button'); // Создаём кнопку Повторить
+    retryButton.className = 'btn'; // Используем общий стиль кнопки
+    retryButton.type = 'button'; // Явно задаём тип кнопки
+    retryButton.textContent = 'Повторить'; // Добавляем текст на кнопку
+    retryButton.addEventListener('click', function () { // Вешаем обработчик нажатия
+      retryHandler(); // Повторяем загрузку ссылок
+    }); // Завершаем обработчик
+
+    container.appendChild(text); // Добавляем текст в контейнер
+    container.appendChild(retryButton); // Добавляем кнопку в контейнер
+  }
 
   function renderBanks(banks, container, telegramContext) { // Создаём кнопки для каждого банка
     container.innerHTML = ''; // Очищаем контейнер перед вставкой
@@ -48,22 +87,19 @@
       title.textContent = bank.title; // Записываем название банка
 
       button.addEventListener('click', function () { // Реагируем на клик по конкретному банку
+        window.ApiClient.sendBankClick(telegramContext, bank.bank_id || bank.id, { link_id: bank.link_id, link_token: bank.link_token }); // Отправляем событие выбора банка
+
         const hasRedirect = Boolean(bank.link_token || bank.deeplink || bank.fallback_url); // Проверяем, есть ли данные для редиректа
         const shouldCloseOnly = bank.close_only || !hasRedirect; // Определяем, нужно ли просто закрыть Mini App
-        const telemetryDelayMs = 250; // Минимальная пауза, чтобы телеметрия успела отправиться
-
-        window.ApiClient.sendBankClick(telegramContext, bank.bank_id || bank.id, { link_id: bank.link_id, link_token: bank.link_token }); // Отправляем событие выбора банка
 
         if (shouldCloseOnly) { // Если нужно просто закрыть приложение
           setTimeout(function () { // Делаем короткую паузу перед закрытием
             window.TelegramBridge.closeMiniApp(); // Закрываем Mini App без перехода
-          }, telemetryDelayMs); // Даём телеметрии стартовать
+          }, 250); // Даём телеметрии стартовать
           return; // Завершаем обработчик
         }
 
-        setTimeout(function () { // Чуть откладываем редирект, чтобы отправка телеметрии успела начаться
-          openRedirect(bank, telegramContext); // Перенаправляем пользователя на страницу редиректа
-        }, telemetryDelayMs); // Используем минимальную задержку
+        openRedirect(bank, telegramContext); // Перенаправляем пользователя на страницу редиректа
       });
 
       button.appendChild(icon); // Вставляем логотип внутрь кнопки
@@ -90,7 +126,7 @@
   function openRedirect(bank, telegramContext) { // Формируем ссылку на страницу редиректа и открываем её
     const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Достаём transfer_id
     const redirectUrl = new URL('./redirect/index.html', window.location.href); // Создаём URL страницы редиректа
-    redirectUrl.searchParams.set('transfer_id', transferId || ''); // Пробрасываем transfer_id как параметр
+    redirectUrl.searchParams.set('transfer_id', transferId || ''); // Пробрасываем transfer_id как праметр
     redirectUrl.searchParams.set('bank_id', bank.bank_id || bank.id || ''); // Передаём выбранный банк
     if (bank.link_token) { // Если backend выдал токен
       redirectUrl.searchParams.set('link_token', bank.link_token); // Добавляем токен ссылки
@@ -150,7 +186,7 @@
   }
 
   function attachStretchEffect(listElement, buttonSelector) { // Добавляем "растяжку" списка при упоре
-    let startY = 0; // Точка начала касания
+    let startY = 0; // Точка начала касани
     let touching = false; // Флаг активного касания
 
     listElement.addEventListener('touchstart', function (event) { // Фиксируем начало касания
