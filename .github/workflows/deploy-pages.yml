@@ -1,0 +1,34 @@
+name: Deploy GitHub Pages # Читаемое имя workflow в интерфейсе GitHub Actions
+
+on: # Раздел триггеров запуска
+  push: # Запускать при пушах в выбранные ветки
+    branches: [ "main" ] # Ограничиваем запуск веткой main, чтобы автодеплой шёл только с неё
+  workflow_dispatch: {} # Позволяем запускать workflow вручную из интерфейса GitHub
+
+permissions: # Настройка минимально необходимых прав
+  contents: read # Нужно право на чтение репозитория для checkout
+  pages: write # Право на публикацию артефакта в GitHub Pages
+  id-token: write # Право выдавать OIDC-токен, требуемый deploy-pages
+
+concurrency: # Ограничиваем одновременные запуски
+  group: "pages" # Имя группы, чтобы новые запуски отменяли старые
+  cancel-in-progress: false # Не отменяем уже выполняющиеся деплои, чтобы избежать обрывов публикации
+
+jobs: # Описание всех задач workflow
+  deploy: # Единственная задача — деплой статики
+    environment: # Настройки окружения деплоя
+      name: github-pages # Имя среды, GitHub Pages использует его по умолчанию
+      url: ${{ steps.deployment.outputs.page_url }} # Автоматически сохраняем опубликованный URL в переменную окружения
+    runs-on: ubuntu-latest # Запускаем задачу на последнем образе Ubuntu
+    steps: # Шаги, которые выполнятся по порядку
+      - name: Checkout repository # Клонируем код репозитория внутрь раннера
+        uses: actions/checkout@v4 # Готовый экшен для checkout с поддержкой lfs и submodules
+
+      - name: Upload static site artifact # Собираем и упаковываем фронтенд для публикации
+        uses: actions/upload-pages-artifact@v3 # Экшен для загрузки артефакта GitHub Pages
+        with: # Параметры экшена
+          path: Flow_Lite_bot_WebApp_Frontend # Папка со статическими файлами, которые надо опубликовать
+
+      - name: Deploy to GitHub Pages # Публикуем загруженный артефакт в Pages
+        id: deployment # Сохраняем id шага, чтобы достать page_url выше
+        uses: actions/deploy-pages@v4 # Стандартный экшен GitHub для выкладки Pages
