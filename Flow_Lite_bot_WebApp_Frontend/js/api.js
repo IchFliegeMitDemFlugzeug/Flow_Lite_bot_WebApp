@@ -1,6 +1,7 @@
 (function (window) { // Изолируем клиент API в IIFE
-  const TELEMETRY_URL = 'http://localhost:8080/api/webapp'; // Локальный эндпоинт backend.py для приёма событий
-  const LINKS_BASE_URL = '/api/links'; // Базовый путь для динамических ссылок на backend
+  const BACKEND_BASE_URL = 'http://142.132.205.110:8080'; // Публичный адрес бекенда, доступный с GitHub Pages
+  const TELEMETRY_URL = `${BACKEND_BASE_URL}/api/webapp`; // Полный путь приёма телеметрии на удалённом сервере
+  const LINKS_BASE_URL = `${BACKEND_BASE_URL}/api/links`; // Полный путь для динамических ссылок на удалённом сервере
 
   function buildPayload(context, eventType, bankId, page, extra) { // Собираем единый объект полезной нагрузки
     const safeContext = context || {}; // Гарантируем наличие объекта контекста
