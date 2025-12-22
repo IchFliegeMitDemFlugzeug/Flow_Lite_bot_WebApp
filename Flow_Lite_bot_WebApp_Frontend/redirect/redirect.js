@@ -44,6 +44,7 @@
       fallbackLink.href = bank.fallback_url || bank.deeplink || '#'; // Ставим ссылку на fallback
       fallbackLink.addEventListener('click', function () { // Добавляем обработчик клика по fallback-ссылке
         window.ApiClient.sendRedirectEvent(telegramContext, bank.id, 'redirect_manual_click'); // Логируем ручной клик
+        scheduleCloseWindow(); // Планируем закрытие вкладки после ручного перехода
       });
     }
 
