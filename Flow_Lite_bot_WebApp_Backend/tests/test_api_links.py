@@ -7,7 +7,7 @@ import unittest  # Библиотека тестирования
 from http.server import HTTPServer  # HTTP-сервер для запуска хэндлера
 from urllib import request  # Для отправки HTTP-запросов
 
-from services.WebApp import backend  # Импортируем модуль backend для использования хэндлера
+import backend  # Импортируем модуль backend для использования хэндлера
 
 
 class ApiLinkTests(unittest.TestCase):  # Набор тестов для API ссылок

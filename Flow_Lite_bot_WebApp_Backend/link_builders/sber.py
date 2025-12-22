@@ -8,7 +8,7 @@
 
 from __future__ import annotations  # Включаем отложенные аннотации для читаемости
 
-from services.WebApp.schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем типы запросов и ответов
+from schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем типы запросов и ответов
 
 
 def build_sber_universal(payload: LinkBuilderRequest) -> LinkBuilderResult:

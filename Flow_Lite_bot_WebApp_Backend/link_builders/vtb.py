@@ -2,7 +2,7 @@
 
 from __future__ import annotations  # Включаем отложенные аннотации
 
-from services.WebApp.schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем схемы запросов и ответов
+from schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем схемы запросов и ответов
 
 
 def build_vtb_universal(payload: LinkBuilderRequest) -> LinkBuilderResult:
