@@ -1,5 +1,6 @@
 (function (window, document) { // Изолируем конфиг в IIFE, чтобы не засорять глобальную область
   const DEFAULT_BACKEND_BASE_URL = 'https://shadow-verification-acm-river.trycloudflare.com'; // Базовый HTTPS-адрес по умолчанию
+  const DEFAULT_ASSETS_VERSION = (window.APP_ASSETS_VERSION || '2025-12-22-1').toString(); // Версия ассетов для кэша браузера
   const repoPrefix = '/Flow_Lite_bot_WebApp/'; // Жёстко задаём имя репозитория, чтобы GitHub Pages всегда отдавал правильный путь
   const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + repoPrefix + 'redirect/'; // Базовый адрес страницы редиректа, учитывающий вложенность сайта
 
@@ -63,8 +64,10 @@
 
   const resolvedBackendBaseUrl = resolveBackendBaseUrl(); // Считаем итоговый адрес один раз
   const resolvedRedirectBaseUrl = resolveRedirectBaseUrl(); // Считаем итоговый адрес редиректа один раз
+  const resolvedAssetsVersion = DEFAULT_ASSETS_VERSION; // Фиксируем версию ассетов для единообразного использования
 
   window.AppConfig = window.AppConfig || {}; // Создаём пространство имён конфигурации, если его нет
   window.AppConfig.BACKEND_BASE_URL = resolvedBackendBaseUrl; // Экспортируем базовый адрес для остальных модулей
   window.AppConfig.REDIRECT_BASE_URL = resolvedRedirectBaseUrl; // Экспортируем адрес страницы редиректа для Mini App
+  window.AppConfig.APP_ASSETS_VERSION = resolvedAssetsVersion; // Экспортируем версию ассетов для подстановки ?v=
 })(window, document); // Передаём window и document в IIFE

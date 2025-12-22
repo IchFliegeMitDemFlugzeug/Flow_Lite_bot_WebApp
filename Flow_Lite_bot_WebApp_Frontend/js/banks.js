@@ -1,52 +1,142 @@
 (function (window) { // Изолируем загрузчик банков в IIFE
-  function loadBanks() { // Публичная функция загрузки списка банков
-    const configPath = window.location.pathname.includes('/redirect/') ? '../config/banks.json' : './config/banks.json'; // Подбираем относительный путь до конфигурации
-    const requestUrl = new URL(configPath, window.location.href).toString(); // Формируем абсолютный URL до файла
+  const LOCAL_BANKS = [ // Встроенный список, который рендерится мгновенно без ожидания сети
+    { // Первый банк в списке
+      id: 'sber', // Идентификатор банка для логики
+      title: 'Сбербанк', // Читаемое название банка
+      logo: 'assets/img/banks/sber.png', // Путь до PNG-логотипа
+      supported_identifiers: ['phone', 'card'], // Что умеет сборщик ссылок
+      builder: 'sber_universal', // Имя билдера на бэкенде
+      notes: 'Перевод по номеру телефона или карты через Сбербанк' // Пояснение для отладки
+    },
+    { // Второй банк
+      id: 'tbank', // Идентификатор банка
+      title: 'Т-Банк', // Название на кнопке
+      logo: 'assets/img/banks/tbank.png', // PNG-логотип
+      supported_identifiers: ['phone'], // Какие реквизиты поддерживаются
+      builder: 'tinkoff_phone', // Имя билдера ссылок
+      notes: 'Оплата по номеру телефона в Т-Банк' // Комментарий
+    },
+    { // Третий банк
+      id: 'vtb', // Идентификатор банка
+      title: 'ВТБ', // Название
+      logo: 'assets/img/banks/vtb.png', // Путь до логотипа
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      builder: 'vtb_universal', // Имя билдера
+      notes: 'Универсальные ссылки для перевода в ВТБ' // Комментарий для отладки
+    },
+    { // Заглушка Альфа-Банк
+      id: 'alfabank', // Идентификатор банка
+      title: 'Альфа-Банк', // Название
+      logo: 'assets/img/banks/alfabank.png', // Логотип PNG
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Кнопка просто закрывает приложение
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка РСХБ
+      id: 'rshb', // Идентификатор банка
+      title: 'Россельхозбанк', // Название
+      logo: 'assets/img/banks/rshb.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Кнопка закрывает приложение
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка Газпромбанк
+      id: 'gazprombank', // Идентификатор банка
+      title: 'Газпромбанк', // Название
+      logo: 'assets/img/banks/gazprombank.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие приложения
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка ПСБ
+      id: 'psb', // Идентификатор банка
+      title: 'ПСБ', // Название
+      logo: 'assets/img/banks/psb.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка МКБ
+      id: 'mkb', // Идентификатор банка
+      title: 'МКБ', // Название
+      logo: 'assets/img/banks/mkb.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка МТС
+      id: 'mtsbank', // Идентификатор банка
+      title: 'МТС Банк', // Название
+      logo: 'assets/img/banks/mtsbank.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка Почта Банк
+      id: 'pochtabank', // Идентификатор банка
+      title: 'Почта Банк', // Название
+      logo: 'assets/img/banks/pochtabank.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    },
+    { // Заглушка Совкомбанк
+      id: 'sovcombank', // Идентификатор банка
+      title: 'Совкомбанк', // Название
+      logo: 'assets/img/banks/sovcombank.png', // Логотип
+      supported_identifiers: ['phone', 'card'], // Доступные реквизиты
+      close_only: true, // Только закрытие
+      notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
+    }
+  ]; // Завершаем встроенный массив
 
-    return fetch(requestUrl, { cache: 'no-cache' }) // Запрашиваем JSON с описанием банков
-      .then(function (response) { // Обрабатываем ответ сервера
-        if (!response.ok) { // Если HTTP-статус неуспешный
-          throw new Error('Не удалось загрузить banks.json'); // Выбрасываем ошибку для перехода к fallback
-        }
-        return response.json(); // Парсим тело ответа как JSON
-      })
-      .catch(function (error) { // Если загрузка или парсинг не удались
-        console.debug('BankLoader: ошибка загрузки, используем запасной список', error); // Сообщаем в debug
-        return [ // Возвращаем статический список, чтобы UI не ломался
-          {
-            id: 'sber', // Идентификатор банка
-            title: 'Сбербанк', // Название банка
-            logo: 'assets/img/banks/sber.png', // Путь к логотипу
-            deeplink: 'https://www.sberbank.com/sms/pbpn?requisiteNumber=79309791051', // Ссылка оплаты по номеру телефона
-            fallback_url: 'https://www.sberbank.com/sms/pbpn?requisiteNumber=79309791051' // Рабочий fallback в браузере
-          },
-          {
-            id: 'tbank', // Идентификатор банка
-            title: 'Т-Банк', // Название
-            logo: 'assets/img/banks/tbank.png', // Логотип
-            deeplink: 'https://www.tbank.ru/mybank/payments/persons/phone/?internal_source=homePayments_transferByPhoneSmall_suggest&predefined=%7B%22phone%22%3A%22%2B79160794459%22%7D', // Переход на оплату по телефону
-            fallback_url: 'https://www.tbank.ru/mybank/payments/persons/phone/?internal_source=homePayments_transferByPhoneSmall_suggest&predefined=%7B%22phone%22%3A%22%2B79160794459%22%7D' // Fallback совпадает с deeplink
-          },
-          {
-            id: 'vtb', // Идентификатор банка
-            title: 'ВТБ', // Название
-            logo: 'assets/img/banks/vtb.png', // Логотип
-            deeplink: 'https://online.vtb.ru/i/cell/ppl/9309791051', // Deeplink на оплату по телефону
-            fallback_url: 'https://online.vtb.ru/transfers/transferByPhone?isStandaloneScenario=true&actionType=generalTargetSearch&tab=SWITCH_TO_OP_4808&isForeingNumber=false&isInternalTargetSearch=false&predefinedValues%5BpredefinedPhoneNumber%5D=%2B7%20916%20079-44-59&stage=INPUT' // Безопасный fallback для браузера
-          },
-          { id: 'alfabank', title: 'Альфа-Банк', logo: 'assets/img/banks/alfabank.png', close_only: true }, // Остальные пока только закрывают Mini App
-          { id: 'rshb', title: 'Россельхозбанк', logo: 'assets/img/banks/rshb.png', close_only: true }, // Заглушка закрытия
-          { id: 'gazprombank', title: 'Газпромбанк', logo: 'assets/img/banks/gazprombank.png', close_only: true }, // Заглушка закрытия
-          { id: 'psb', title: 'ПСБ', logo: 'assets/img/banks/psb.png', close_only: true }, // Заглушка закрытия
-          { id: 'mkb', title: 'МКБ', logo: 'assets/img/banks/mkb.png', close_only: true }, // Заглушка закрытия
-          { id: 'mtsbank', title: 'МТС Банк', logo: 'assets/img/banks/mtsbank.png', close_only: true }, // Заглушка закрытия
-          { id: 'pochtabank', title: 'Почта Банк', logo: 'assets/img/banks/pochtabank.png', close_only: true }, // Заглушка закрытия
-          { id: 'sovcombank', title: 'Совкомбанк', logo: 'assets/img/banks/sovcombank.png', close_only: true } // Заглушка закрытия
-        ];
-      });
+  const ASSETS_VERSION = (window.AppConfig && window.AppConfig.APP_ASSETS_VERSION) || (window.APP_ASSETS_VERSION || ''); // Версия ассетов для пробивки кэша
+  let banksCache = null; // Последний удачный список банков для повторного использования
+
+  function cloneBanks(list) { // Делает поверхностную копию массива банков
+    return list.map(function (bank) { // Перебираем входной массив
+      return Object.assign({}, bank); // Возвращаем новый объект, чтобы не портить исходные данные
+    }); // Завершаем map
+  }
+
+  function buildConfigUrl() { // Собирает полный URL до banks.json с версией
+    const basePath = window.location.pathname.includes('/redirect/') ? '../config/banks.json' : './config/banks.json'; // Подбираем относительный путь от страницы
+    const versionSuffix = ASSETS_VERSION ? `?v=${ASSETS_VERSION}` : ''; // Добавляем версию для обновления кэша
+    const requestUrl = new URL(basePath + versionSuffix, window.location.href); // Строим абсолютный адрес
+    return requestUrl.toString(); // Возвращаем готовую строку
+  }
+
+  function refreshBanksInBackground() { // Обновляет banks.json в кэше, не блокируя первый кадр
+    requestAnimationFrame(function () { // Ждём, пока браузер нарисует стартовый кадр
+      setTimeout(function () { // Переносим сетевой запрос в конец очереди событий
+        const requestUrl = buildConfigUrl(); // Получаем полный URL файла конфигурации
+        fetch(requestUrl) // Читаем banks.json из кэша браузера
+          .then(function (response) { // Обрабатываем ответ сервера
+            if (!response.ok) { // Проверяем код ответа
+              throw new Error('Не удалось обновить список банков из banks.json'); // Бросаем ошибку для блока catch
+            } // Завершаем проверку статуса
+            return response.json(); // Парсим тело как JSON
+          }) // Завершаем then с json
+          .then(function (freshBanks) { // Когда JSON успешно распарсен
+            banksCache = cloneBanks(freshBanks || LOCAL_BANKS); // Обновляем кэш новым списком или оставляем встроенный
+          }) // Завершаем успешное обновление кэша
+          .catch(function (error) { // Любая ошибка при запросе или парсинге
+            console.debug('BankLoader: не удалось обновить banks.json, работаем из встроенных данных', error); // Сообщаем в debug, но не блокируем UI
+          }); // Завершаем цепочку запроса
+      }, 0); // Мгновенная задача после первого кадра
+    }); // Завершаем requestAnimationFrame
+  }
+
+  function loadBanks() { // Публичная функция загрузки списка банков
+    if (!banksCache) { // Проверяем, не заполняли ли кэш ранее
+      banksCache = cloneBanks(LOCAL_BANKS); // Кладём встроенный список, чтобы сразу отрисовать UI
+      refreshBanksInBackground(); // Параллельно пробуем обновить данные с диска
+    } // Завершаем блок первичной инициализации
+
+    return Promise.resolve(cloneBanks(banksCache)); // Возвращаем копию кэша, чтобы вызывающий код не изменил оригинал
   }
 
   window.BankLoader = { // Экспортируем API загрузчика банков
-    loadBanks: loadBanks // Делаем доступной функцию загрузки
+    loadBanks: loadBanks // Отдаём наружу только функцию загрузки
   }; // Завершаем экспорт
 })(window); // Передаём window внутрь IIFE
