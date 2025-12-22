@@ -166,9 +166,8 @@
   }
 
   function buildRedirectBase() { // Высчитываем корректный базовый путь для страницы редиректа
-    const pathSegments = (window.location.pathname || '').split('/').filter(Boolean); // Разбиваем текущий путь и убираем пустые элементы
-    const repoPrefix = pathSegments.length ? '/' + pathSegments[0] + '/' : '/'; // Берём первую папку, чтобы учесть имя репозитория на GitHub Pages
-    const defaultBase = (window.location.origin || '') + repoPrefix + 'redirect/'; // Собираем дефолтный адрес вида https://host/repo/redirect/
+    const repoPrefix = '/Flow_Lite_bot_WebApp/'; // Жёстко указываем имя репозитория для корректной работы GitHub Pages
+    const defaultBase = (window.location.origin || '') + repoPrefix + 'redirect/'; // Собираем дефолтный адрес вида https://host/Flow_Lite_bot_WebApp/redirect/
     return (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || defaultBase; // Возвращаем адрес из конфига или рассчитанный дефолт
   }
 

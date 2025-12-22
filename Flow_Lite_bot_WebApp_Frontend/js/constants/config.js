@@ -1,7 +1,6 @@
 (function (window, document) { // Изолируем конфиг в IIFE, чтобы не засорять глобальную область
   const DEFAULT_BACKEND_BASE_URL = 'https://shadow-verification-acm-river.trycloudflare.com'; // Базовый HTTPS-адрес по умолчанию
-  const pathSegments = (window.location && window.location.pathname ? window.location.pathname.split('/').filter(Boolean) : []); // Разбиваем текущий путь на части и убираем пустые элементы
-  const repoPrefix = pathSegments.length ? '/' + pathSegments[0] + '/' : '/'; // Берём первую папку (например, имя репозитория на GitHub Pages) или корень
+  const repoPrefix = '/Flow_Lite_bot_WebApp/'; // Жёстко задаём имя репозитория, чтобы GitHub Pages всегда отдавал правильный путь
   const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + repoPrefix + 'redirect/'; // Базовый адрес страницы редиректа, учитывающий вложенность сайта
 
   function readBackendFromWindow() { // Пробуем взять адрес из window.__BACKEND_BASE_URL__
