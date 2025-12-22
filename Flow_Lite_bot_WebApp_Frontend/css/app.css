@@ -14,7 +14,7 @@ html, body {
     #7bdefe 78%,
     #6cebf7 100%
   ); /* Фиксируем точный градиент из исходной картинки */
-  --app-bg-image: var(--app-bg-gradient); /* Делаем фон по умолчанию валидным, чтобы не было пустого слоя */
+  --app-bg-image: url('../assets/bg/background.png'); /* Подставляем сразу настоящую картинку без параметров версии */
   --app-bg-glow: radial-gradient(
     circle at 28% 22%,
     rgba(255, 255, 255, 0.35) 0%,
@@ -24,22 +24,14 @@ html, body {
 
 /* Основной контейнер страницы с моментальным градиентом и вертикальной компоновкой */
 body {
-  background-image: var(--app-bg-gradient), var(--app-bg-glow); /* Показываем только CSS-градиент сразу */
-  background-size: cover, cover; /* Растягиваем оба слоя по экрану */
-  background-position: center, center; /* Центрируем оба слоя */
-  background-repeat: no-repeat, no-repeat; /* Отключаем повторение, чтобы градиент не плитовался */
+  background-image: var(--app-bg-image), var(--app-bg-glow), var(--app-bg-gradient); /* Загружаем картинку, свечение и градиент одновременно */
+  background-size: cover, cover, cover; /* Растягиваем все слои по экрану */
+  background-position: center, center, center; /* Центрируем каждый слой */
+  background-repeat: no-repeat, no-repeat, no-repeat; /* Отключаем повторение для всех слоёв */
   display: flex; /* Включаем flex для построения столбца */
   flex-direction: column; /* Раскладываем элементы сверху вниз */
   font-family: 'Helvetica Neue', Arial, sans-serif; /* Применяем базовый шрифт */
   min-height: 100vh; /* Гарантируем высоту экрана, даже если мало контента */
-}
-
-/* Включаем фоновую картинку только после асинхронной загрузки */
-.bg-ready {
-  background-image: var(--app-bg-image), var(--app-bg-glow), var(--app-bg-gradient); /* Добавляем фон поверх градиента */
-  background-size: cover, cover, cover; /* Растягиваем все слои равномерно */
-  background-position: center, center, center; /* Центрируем каждый слой */
-  background-repeat: no-repeat, no-repeat, no-repeat; /* Запрещаем повторение на всех слоях */
 }
 
 /* Обёртка, чтобы контент не прилипал к краям на больших экранах */

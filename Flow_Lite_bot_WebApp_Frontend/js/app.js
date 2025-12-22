@@ -37,13 +37,13 @@
           return linksPromise; // Возвращаем сохранённый промис, чтобы совпадал с объявлением
         }); // Завершаем рендер списка
         attachStretchEffect(bankListElement, '.btn'); // Добавляем эффект "растяжки" при прокрутке
-      }) // Завершаем успешную загрузку банков
-      .catch(function (error) { // Если даже встроенный список не вернулся
-        console.debug('App: не удалось подготовить список банков', error); // Сообщаем в debug для диагностики
-      }); // Завершаем обработку ошибок
+        }) // Завершаем успешную загрузку банков
+        .catch(function (error) { // Если даже встроенный список не вернулся
+          console.debug('App: не удалось подготовить список банков', error); // Сообщаем в debug для диагностики
+        }); // Завершаем обработку ошибок
 
-    lazyLoadBackground(); // Догружаем фоновую картинку сразу, чтобы она подхватилась как только загрузится
-  }); // Завершаем обработчик DOMContentLoaded
+      // Отдельная загрузка фона не требуется: CSS сразу подхватывает картинку вместе с градиентом
+    }); // Завершаем обработчик DOMContentLoaded
 
   function renderBanks(banks, container, telegramContext, transferId, linkCache, requestLinksOnce) { // Создаём кнопки для каждого банка
     container.innerHTML = ''; // Очищаем контейнер перед вставкой
@@ -214,20 +214,6 @@
     const repoPrefix = '/Flow_Lite_bot_WebApp/'; // Жёстко указываем имя репозитория для корректной работы GitHub Pages
     const defaultBase = (window.location.origin || '') + repoPrefix + 'redirect/'; // Собираем дефолтный адрес вида https://host/Flow_Lite_bot_WebApp/redirect/
     return (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || defaultBase; // Возвращаем адрес из конфига или рассчитанный дефолт
-  }
-
-  function lazyLoadBackground() { // Догружаем фоновую картинку сразу после старта, чтобы фон появлялся как только загрузится
-    const version = (window.AppConfig && window.AppConfig.APP_ASSETS_VERSION) || (window.APP_ASSETS_VERSION || ''); // Берём версию ассетов для bust параметра сразу
-    const bgUrl = './assets/bg/background.png' + (version ? '?v=' + version : ''); // Формируем URL фоновой картинки с версией без задержек
-    const img = new Image(); // Создаём объект Image для предзагрузки
-    img.onload = function () { // После успешной загрузки
-      document.body.style.setProperty('--app-bg-image', 'url(' + bgUrl + ')'); // Сохраняем URL в CSS-переменную, чтобы слой сразу стал валидным
-      document.body.classList.add('bg-ready'); // Включаем слой с картинкой, как только она декодировалась
-    }; // Завершаем обработчик onload
-    img.onerror = function () { // Если картинка не загрузилась
-      console.debug('App: не удалось загрузить фоновую картинку', bgUrl); // Сообщаем в debug, чтобы проще найти причину
-    }; // Завершаем обработчик ошибки
-    img.src = bgUrl; // Стартуем загрузку без задержек, чтобы фон появился сразу после готовности
   }
 
   function attachStretchEffect(listElement, buttonSelector) { // Добавляем "растяжку" списка при упоре
