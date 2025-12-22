@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Заголовок вкладки -->
   <title>Переход в банк</title>
+  <!-- Базовый адрес API для Mini App (по HTTPS) -->
+  <meta name="backend-base-url" content="https://shadow-verification-acm-river.trycloudflare.com">
   <!-- Небольшие стили, чтобы страница выглядела опрятно -->
   <style>
     /* Обёртка на всю высоту экрана */
@@ -55,6 +57,7 @@
   </div>
 
   <!-- Подключаем конфигурацию и отправку событий -->
+  <script src="./js/constants/config.js"></script>
   <script src="./scripts/modules/constants.js"></script>
   <script src="./scripts/modules/events.js"></script>
   <!-- Логика редиректа с deep link и fallback -->

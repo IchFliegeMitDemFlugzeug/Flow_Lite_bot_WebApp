@@ -1,5 +1,5 @@
 (function (window) { // Изолируем клиент API в IIFE
-  const BACKEND_BASE_URL = 'http://142.132.205.110:8080'; // Публичный адрес бекенда, доступный с GitHub Pages
+  const BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || 'https://shadow-verification-acm-river.trycloudflare.com'; // Забираем адрес бэкенда из конфигурации или берём дефолтный HTTPS
   const TELEMETRY_URL = `${BACKEND_BASE_URL}/api/webapp`; // Полный путь приёма телеметрии на удалённом сервере
   const LINKS_BASE_URL = `${BACKEND_BASE_URL}/api/links`; // Полный путь для динамических ссылок на удалённом сервере
 
@@ -83,12 +83,21 @@
     return fetch(requestUrl, { method: 'GET', cache: 'no-cache' }) // Запрашиваем список ссылок
       .then(function (response) { // Ждём ответ
         if (!response.ok) { // Если пришла ошибка
-          throw new Error('Не удалось получить ссылки банка'); // Бросаем исключение, чтобы его обработали выше
+          const responseError = new Error('Не удалось получить ссылки банка'); // Готовим ошибку для вызвавшего кода
+          responseError.status = response.status; // Сохраняем статус ответа для диагностики
+          responseError.statusText = response.statusText; // Сохраняем текст статуса
+          responseError.requestUrl = requestUrl; // Сохраняем URL запроса
+          throw responseError; // Бросаем исключение, чтобы его обработали выше
         }
         return response.json(); // Парсим тело как JSON
       })
       .then(function (data) { // После парсинга
         return data.links || []; // Возвращаем массив ссылок (или пустой массив)
+      })
+      .catch(function (error) { // Отлавливаем сетевые и логические ошибки
+        const enrichedError = error || new Error('unknown error'); // Страхуемся от отсутствия объекта ошибки
+        enrichedError.requestUrl = enrichedError.requestUrl || requestUrl; // Подставляем URL запроса, если его не было
+        throw enrichedError; // Пробрасываем ошибку дальше
       });
   }
 
