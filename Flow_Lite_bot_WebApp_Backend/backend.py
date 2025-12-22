@@ -22,7 +22,11 @@ from link_builders import get_builder  # Подключаем реестр ко�
 from schemas.link_payload import LinkBuilderRequest  # Тип запроса к конструктору ссылок
 
 
-logging.basicConfig(level=logging.INFO)  # Настраиваем базовый логгер
+logging.basicConfig(  # Настраиваем базовый логгер с подробным форматом
+    level=logging.DEBUG,  # Ставим уровень DEBUG, чтобы видеть каждый шаг
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",  # Подробный формат сообщений
+    datefmt="%Y-%m-%d %H:%M:%S",  # Формат даты для удобства чтения
+)  # Закрываем конфигурацию базового логгера
 logger = logging.getLogger(__name__)  # Получаем логгер этого модуля
 
 
@@ -30,23 +34,34 @@ class LinkTokenStore:  # Простое хранилище токенов deepli
     def __init__(self, ttl_seconds: int = 300) -> None:  # Конструктор принимает TTL в секундах
         self.ttl_seconds = ttl_seconds  # Сохраняем время жизни токенов
         self._storage: Dict[str, Tuple[float, dict]] = {}  # Словарь token -> (expires_at, payload)
+        logger.debug("LinkTokenStore: создан экземпляр с TTL=%s секунд", self.ttl_seconds)  # Логируем инициализацию
 
     def issue_token(self, payload: dict) -> str:  # Создаём и запоминаем новый токен
         token = uuid.uuid4().hex  # Генерируем случайный токен
+        logger.debug("LinkTokenStore: генерируем новый токен %s", token)  # Сообщаем о генерации токена
         expires_at = time.time() + self.ttl_seconds  # Считаем время истечения токена
+        logger.debug(
+            "LinkTokenStore: рассчитано время истечения %s для токена %s", expires_at, token
+        )  # Фиксируем TTL токена
         self._storage[token] = (expires_at, payload)  # Кладём payload вместе с временем истечения
-        logger.debug("LinkTokenStore: создан токен %s с истечением %s", token, expires_at)  # Логируем создание токена
+        logger.debug("LinkTokenStore: сохранён payload %s для токена %s", payload, token)  # Логируем сохранение payload
         return token  # Возвращаем токен для клиента
 
     def get_payload(self, token: str) -> dict | None:  # Получаем payload по токену
+        logger.debug("LinkTokenStore: ищем токен %s", token)  # Фиксируем попытку найти токен
         record = self._storage.get(token)  # Ищем запись в словаре
         if not record:  # Если записи нет
+            logger.debug("LinkTokenStore: токен %s не найден", token)  # Сообщаем, что записи нет
             return None  # Возвращаем None
         expires_at, payload = record  # Распаковываем запись
+        logger.debug(
+            "LinkTokenStore: найден токен %s с истечением %s и payload %s", token, expires_at, payload
+        )  # Показываем содержимое записи
         if time.time() > expires_at:  # Если TTL истёк
             logger.debug("LinkTokenStore: токен %s устарел, удаляем", token)  # Сообщаем в лог
             self._storage.pop(token, None)  # Удаляем запись
             return None  # Возвращаем None
+        logger.debug("LinkTokenStore: токен %s актуален, возвращаем payload", token)  # Подтверждаем актуальность
         return payload  # Отдаём сохранённый payload
 
 
@@ -55,17 +70,23 @@ token_store = LinkTokenStore()  # Глобальное хранилище ток
 def base64_decode(value: str) -> str:  # Вспомогательная функция для base64url
     import base64  # Импортируем локально, чтобы не засорять глобальные импорты
 
+    logger.debug("Base64 decode: входное значение %s", value)  # Логируем входное значение
     decoded_bytes = base64.b64decode(value.encode("utf-8"))  # Декодируем строку в байты
+    logger.debug("Base64 decode: получили байты %s", decoded_bytes)  # Фиксируем промежуточный результат
     return decoded_bytes.decode("utf-8")  # Превращаем байты обратно в строку
 
 
 def decode_transfer_payload(start_param: str) -> dict:  # Раскодируем start_param, чтобы узнать тип реквизита
     if not start_param:  # Если параметр пустой
+        logger.debug("Decode transfer payload: пустой start_param, возвращаем {}")  # Сообщаем об отсутствии данных
         return {}  # Возвращаем пустой словарь
     try:  # Пробуем декодировать base64url → JSON
         normalized = start_param.replace("-", "+").replace("_", "/")  # Возвращаем стандартные символы base64
+        logger.debug("Decode transfer payload: нормализованное значение %s", normalized)  # Логируем нормализованное значение
         padding = "=" * ((4 - len(normalized) % 4) % 4)  # Считаем недостающие символы '='
+        logger.debug("Decode transfer payload: рассчитанная набивка %s", padding)  # Показываем добавочный padding
         decoded = json.loads(base64_decode(normalized + padding))  # Превращаем JSON-строку в объект
+        logger.debug("Decode transfer payload: раскодированный объект %s", decoded)  # Демонстрируем результат декодирования
         return decoded if isinstance(decoded, dict) else {}  # Возвращаем dict, иначе пустой объект
     except Exception as exc:  # Если что-то пошло не так
         logger.debug("WebApp API: не удалось раскодировать transfer_id %s: %s", start_param, exc)  # Логируем проблему
@@ -74,15 +95,21 @@ def decode_transfer_payload(start_param: str) -> dict:  # Раскодируем
 
 def detect_identifier(transfer_id: str, payload: dict) -> Tuple[str, str]:  # Определяем тип и значение реквизита
     option = payload.get("option") or {}  # Берём опцию из полезной нагрузки
+    logger.debug("Detect identifier: получен payload %s и option %s", payload, option)  # Показываем исходные данные
     if "phone" in option:  # Если в опции есть телефон
+        logger.debug("Detect identifier: найден phone %s", option.get("phone"))  # Логируем найденный телефон
         return "phone", str(option.get("phone"))  # Возвращаем тип phone и его значение
     if "card" in option:  # Если есть карта
+        logger.debug("Detect identifier: найдена карта %s", option.get("card"))  # Логируем найденную карту
         return "card", str(option.get("card"))  # Возвращаем тип card и значение
 
     digits_only = "".join(ch for ch in transfer_id if ch.isdigit() or ch == "+")  # Фильтруем transfer_id до цифр
+    logger.debug("Detect identifier: очищенное значение transfer_id %s", digits_only)  # Показываем очищенные данные
     if len(digits_only) >= 10 and len(digits_only) <= 15:  # Если похоже на телефон
+        logger.debug("Detect identifier: классифицируем как phone %s", digits_only)  # Фиксируем классификацию телефона
         return "phone", digits_only  # Возвращаем тип phone
     if len(digits_only) >= 16:  # Если похоже на карту
+        logger.debug("Detect identifier: классифицируем как card %s", digits_only)  # Фиксируем классификацию карты
         return "card", digits_only  # Возвращаем тип card
 
     raise ValueError("Невозможно определить тип идентификатора")  # Сообщаем о невозможности распознать реквизит
@@ -90,15 +117,24 @@ def detect_identifier(transfer_id: str, payload: dict) -> Tuple[str, str]:  # О
 
 def load_banks_config() -> List[dict]:  # Загружаем banks.json из конфигурации
     config_path = Path(__file__).resolve().parent / "config" / "banks.json"  # Формируем путь до файла относительно backend.py
+    logger.debug("Load banks config: путь к конфигурации %s", config_path)  # Логируем путь до файла конфигурации
     with config_path.open("r", encoding="utf-8") as fp:  # Открываем файл в кодировке UTF-8
-        return json.load(fp)  # Парсим JSON и возвращаем список банков
+        data = json.load(fp)  # Парсим JSON и возвращаем список банков
+        logger.debug("Load banks config: считаны данные %s", data)  # Показываем прочитанные данные
+        return data  # Возвращаем список банков
 
 
 def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]:  # Генерируем ссылки для всех банков
+    logger.debug("Build links: стартуем генерацию для transfer_id %s", transfer_id)  # Сообщаем о старте генерации
     payload = decode_transfer_payload(transfer_id)  # Пытаемся распаковать transfer_id
+    logger.debug("Build links: декодированный payload %s", payload)  # Логируем результат декодирования
     identifier_type, identifier_value = detect_identifier(transfer_id, payload)  # Определяем тип реквизита
+    logger.debug(
+        "Build links: определили идентификатор type=%s value=%s", identifier_type, identifier_value
+    )  # Фиксируем тип и значение реквизита
 
     banks = load_banks_config()  # Читаем метаданные банков из файла
+    logger.debug("Build links: загружено банков %s", len(banks))  # Сообщаем количество банков
     results: List[dict] = []  # Список ответов по банкам
     errors: List[str] = []  # Список ошибок для диагностики
 
@@ -106,6 +142,9 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
         bank_id = bank.get("id") or "unknown"  # Забираем id банка
         close_only = bool(bank.get("close_only"))  # Узнаём, нужно ли только закрывать Mini App без ссылок
         supported = bank.get("supported_identifiers") or []  # Узнаём поддерживаемые типы реквизитов
+        logger.debug(
+            "Build links: обрабатываем банк id=%s close_only=%s supported=%s", bank_id, close_only, supported
+        )  # Подробно логируем параметры банка
 
         if close_only:  # Если банк пока работает как заглушка
             results.append(  # Сразу добавляем его в итоговый список
@@ -121,13 +160,18 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
                     "fallback_url": "",  # Fallback тоже отсутствует
                 }
             )
+            logger.debug("Build links: банк %s работает в режиме close_only", bank_id)  # Сообщаем о режиме заглушки
             continue  # Переходим к следующему банку
 
         if identifier_type not in supported:  # Если данный банк не умеет обрабатывать тип реквизита
+            logger.debug(
+                "Build links: банк %s не поддерживает тип %s, пропускаем", bank_id, identifier_type
+            )  # Сообщаем о пропуске банка
             continue  # Пропускаем банк
 
         builder = get_builder(bank.get("builder", ""))  # Ищем конструктор по имени
         if not builder:  # Если конструктор не найден
+            logger.debug("Build links: конструктор для банка %s не найден", bank_id)  # Логируем отсутствие конструктора
             errors.append(f"builder not found for {bank_id}")  # Записываем ошибку
             continue  # Переходим к следующему банку
 
@@ -138,9 +182,13 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
             "comment": str((payload.get("option") or {}).get("comment") or ""),
             "extra": payload,
         }
+        logger.debug(
+            "Build links: подготовили payload %s для банка %s", request_payload, bank_id
+        )  # Показываем запрос в конструктор
 
         try:  # Пытаемся собрать ссылку
             built = builder(request_payload)  # Вызываем конструктор
+            logger.debug("Build links: конструктор %s вернул %s", builder.__name__, built)  # Логируем результат конструктора
         except Exception as exc:  # Ловим любые ошибки конструктора
             logger.warning("WebApp API: ошибка сборки ссылки для %s: %s", bank_id, exc)  # Логируем проблему
             errors.append(f"builder failed for {bank_id}")  # Добавляем ошибку
@@ -162,6 +210,7 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
                 ),
             }
             results.append(fallback_payload)  # Добавляем fallback в список
+            logger.debug("Build links: добавлен fallback %s для банка %s", fallback_payload, bank_id)  # Логируем fallback
             continue  # Переходим к следующему банку
 
         token_payload = {  # Собираем payload для токена редиректа
@@ -170,7 +219,11 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
             "fallback_url": built.get("fallback_url") or "",
             "transfer_id": transfer_id,
         }
+        logger.debug(
+            "Build links: формируем токен с payload %s для банка %s", token_payload, bank_id
+        )  # Показываем содержимое токена
         token = token_store.issue_token(token_payload)  # Создаём токен и кладём в хранилище
+        logger.debug("Build links: выпущен токен %s для банка %s", token, bank_id)  # Логируем созданный токен
 
         result_item = {  # Формируем итоговый объект для фронтенда
             "bank_id": bank_id,
@@ -183,6 +236,7 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
             "fallback_url": built.get("fallback_url", ""),
         }
         results.append(result_item)  # Добавляем объект в список результатов
+        logger.debug("Build links: итоговая запись для банка %s: %s", bank_id, result_item)  # Фиксируем результат
 
     return results, errors  # Возвращаем сформированные ссылки и ошибки
 
@@ -200,12 +254,14 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         super().end_headers()  # Вызываем стандартную реализацию завершения заголовков
 
     def _send_json(self, payload: dict, status_code: int = 200) -> None:  # Отправляем JSON-ответ
+        logger.debug("HTTP: готовим отправку JSON %s со статусом %s", payload, status_code)  # Логируем ответ перед отправкой
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")  # Сериализуем payload в байты
         self.send_response(status_code)  # Ставим HTTP-статус
         self.send_header("Content-Type", "application/json; charset=utf-8")  # Указываем тип содержимого
         self.send_header("Content-Length", str(len(body)))  # Передаём длину тела
         self.end_headers()  # Закрываем заголовки
         self.wfile.write(body)  # Пишем тело ответа
+        logger.debug("HTTP: JSON отправлен, байт=%s", len(body))  # Подтверждаем отправку
 
     def do_OPTIONS(self) -> None:  # Отвечаем на preflight-запросы браузера
         self.send_response(204)  # Отдаём статус 204 No Content
@@ -221,9 +277,11 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         content_length = int(self.headers.get("content-length", 0))  # Узнаём длину тела запроса
         raw_body = self.rfile.read(content_length) if content_length > 0 else b""  # Читаем тело запроса
         logger.info("WebApp API: POST %s, bytes=%s", self.path, content_length)  # Логируем путь и размер тела
+        logger.debug("WebApp API: сырое тело POST %s", raw_body)  # Показываем сырое тело запроса
 
         try:  # Пробуем распарсить JSON
             payload = json.loads(raw_body.decode("utf-8") or "{}")  # Получаем словарь из тела
+            logger.debug("WebApp API: распарсили JSON %s", payload)  # Фиксируем разобранный payload
         except json.JSONDecodeError:  # Если JSON некорректный
             self.send_response(400)  # Отдаём 400 Bad Request
             self.end_headers()  # Закрываем заголовки
@@ -231,6 +289,7 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
             return  # Завершаем обработку
 
         save_webapp_event(payload)  # Пишем событие в БД (без падения при ошибках)
+        logger.debug("WebApp API: событие сохранено в БД %s", payload)  # Подтверждаем сохранение события
 
         self.send_response(202)  # Возвращаем 202 Accepted
         self.end_headers()  # Закрываем заголовки
@@ -238,6 +297,7 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
     def do_GET(self) -> None:  # Обрабатываем GET-запросы
         parsed = urlparse(self.path)  # Разбираем URL
+        logger.debug("WebApp API: GET %s разобран в %s", self.path, parsed)  # Логируем структуру URL
         if parsed.path == "/api/links":  # Эндпоинт для получения списка ссылок
             return self._handle_links_list(parsed)  # Передаём управление в отдельный метод
         if parsed.path.startswith("/api/links/"):  # Эндпоинт для получения ссылки по токену
@@ -251,13 +311,17 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
     def _handle_links_list(self, parsed) -> None:  # Обрабатываем GET /api/links
         query = parse_qs(parsed.query)  # Разбираем query-параметры
+        logger.debug("Handle links list: query-параметры %s", query)  # Логируем разобранные параметры
         transfer_id = (query.get("transfer_id") or [""])[0]  # Извлекаем transfer_id
+        logger.debug("Handle links list: получен transfer_id %s", transfer_id)  # Сообщаем, что получили transfer_id
         if not transfer_id:  # Если параметр не передан
             return self._send_json({"error": "transfer_id is required"}, status_code=400)  # Возвращаем ошибку
 
         try:  # Пытаемся построить ссылки
             links, errors = build_links_for_transfer(transfer_id)  # Генерируем deeplink-объекты
+            logger.debug("Handle links list: собранные ссылки %s, ошибки %s", links, errors)  # Показываем результат сборки
         except ValueError as exc:  # Если не удалось определить реквизиты
+            logger.debug("Handle links list: ошибка валидации %s", exc)  # Логируем ошибку валидации
             return self._send_json({"error": str(exc)}, status_code=400)  # Возвращаем 400 с описанием
         except Exception as exc:  # Если возникла неожиданная ошибка
             logger.warning("WebApp API: внутренний сбой при сборке ссылок %s", exc)  # Логируем проблему
@@ -269,10 +333,12 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
             "links": links,
             "errors": errors,
         }
+        logger.debug("Handle links list: финальный ответ %s", response)  # Показываем сформированный ответ
         return self._send_json(response)  # Отправляем JSON-ответ
 
     def _handle_link_token(self, token: str) -> None:  # Обрабатываем GET /api/links/{token}
         payload = token_store.get_payload(token)  # Пытаемся найти токен в хранилище
+        logger.debug("Handle link token: запрос токена %s вернул %s", token, payload)  # Логируем результат поиска токена
         if not payload:  # Если токен не найден или устарел
             return self._send_json({"error": "token not found"}, status_code=404)  # Возвращаем 404
 
