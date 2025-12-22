@@ -16,6 +16,7 @@
     window.ApiClient.fetchBankLinks(transferId) // Запрашиваем готовые ссылки у backend
       .then(function (links) { // После успешной загрузки
         if (!links || !links.length) { // Если список пустой, включаем резервную загрузку
+          console.debug('App: backend вернул пустой список, используем fallback банки'); // Поясняем причину перехода на fallback
           return renderFromFallback(bankListElement, telegramContext); // Переключаемся на запасные банки
         }
         renderBanks(links, bankListElement, telegramContext); // Рисуем кнопки банков
@@ -25,6 +26,7 @@
       })
       .catch(function (error) { // Если что-то пошло не так
         console.debug('App: не удалось отрисовать банки', error); // Сообщаем об ошибке в debug
+        console.debug('App: переключаемся на fallback банки из-за ошибки запроса'); // Фиксируем причину показа запасного списка
         renderFromFallback(bankListElement, telegramContext); // Пытаемся отрисовать запасной список
       });
   });
@@ -48,15 +50,20 @@
       button.addEventListener('click', function () { // Реагируем на клик по конкретному банку
         const hasRedirect = Boolean(bank.link_token || bank.deeplink || bank.fallback_url); // Проверяем, есть ли данные для редиректа
         const shouldCloseOnly = bank.close_only || !hasRedirect; // Определяем, нужно ли просто закрыть Mini App
+        const telemetryDelayMs = 250; // Минимальная пауза, чтобы телеметрия успела отправиться
 
         window.ApiClient.sendBankClick(telegramContext, bank.bank_id || bank.id, { link_id: bank.link_id, link_token: bank.link_token }); // Отправляем событие выбора банка
 
         if (shouldCloseOnly) { // Если нужно просто закрыть приложение
-          window.TelegramBridge.closeMiniApp(); // Закрываем Mini App без перехода
+          setTimeout(function () { // Делаем короткую паузу перед закрытием
+            window.TelegramBridge.closeMiniApp(); // Закрываем Mini App без перехода
+          }, telemetryDelayMs); // Даём телеметрии стартовать
           return; // Завершаем обработчик
         }
 
-        openRedirect(bank, telegramContext); // Перенаправляем пользователя на страницу редиректа
+        setTimeout(function () { // Чуть откладываем редирект, чтобы отправка телеметрии успела начаться
+          openRedirect(bank, telegramContext); // Перенаправляем пользователя на страницу редиректа
+        }, telemetryDelayMs); // Используем минимальную задержку
       });
 
       button.appendChild(icon); // Вставляем логотип внутрь кнопки
