@@ -78,6 +78,8 @@
         console.debug('Redirect: не удалось открыть deeplink', error); // Пишем ошибку в debug
         switchToFallback(bank); // Переключаемся на веб
       }
+
+      scheduleCloseWindow(); // Планируем закрытие вкладки после попытки открытия банка
     }
 
     function switchToFallback(bank) { // Переход на fallback URL
@@ -86,6 +88,8 @@
       if (targetUrl) { // Если адрес найден
         window.location.href = targetUrl; // Выполняем переход на веб-страницу или повторно в deeplink
       }
+
+      scheduleCloseWindow(); // После перехода пробуем закрыть страницу редиректа, чтобы не оставлять лишнюю вкладку
     }
 
     function resolveLink(token, deeplink, fallback) { // Получаем финальные ссылки для редиректа
@@ -93,6 +97,12 @@
         return window.ApiClient.fetchLinkByToken(token); // Запрашиваем ссылки у backend
       }
       return Promise.resolve({ deeplink: deeplink || '', fallback_url: fallback || '' }); // Используем параметры из URL
+    }
+
+    function scheduleCloseWindow() { // Аккуратно закрываем вкладку после редиректа
+      setTimeout(function () { // Делаем небольшую паузу, чтобы навигация успела стартовать
+        window.close(); // Пытаемся закрыть текущую страницу, если браузер разрешает
+      }, 1200); // Выбираем время чуть больше таймера fallback
     }
   });
 })(window, document); // Передаём window и document внутрь IIFE

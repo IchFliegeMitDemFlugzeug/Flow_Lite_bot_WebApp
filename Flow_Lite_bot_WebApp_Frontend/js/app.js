@@ -136,7 +136,7 @@
   }
 
   function buildRedirectUrl(bank, telegramContext) { // Строим итоговый URL страницы редиректа
-    const redirectBase = (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || (window.location.origin + '/redirect/'); // Берём базовый адрес редиректа из конфига или формируем от origin
+    const redirectBase = buildRedirectBase(); // Определяем базовый адрес редиректа с учётом вложенности сайта
     const redirectUrl = new URL(redirectBase, window.location.href); // Создаём объект URL для удобной работы с параметрами
     const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Достаём transfer_id для телеметрии редиректа
     const bankId = bank.bank_id || bank.id || ''; // Безопасно получаем идентификатор банка
@@ -163,6 +163,13 @@
     }
 
     return redirectUrl.toString(); // Возвращаем итоговый URL с доступными параметрами
+  }
+
+  function buildRedirectBase() { // Высчитываем корректный базовый путь для страницы редиректа
+    const pathSegments = (window.location.pathname || '').split('/').filter(Boolean); // Разбиваем текущий путь и убираем пустые элементы
+    const repoPrefix = pathSegments.length ? '/' + pathSegments[0] + '/' : '/'; // Берём первую папку, чтобы учесть имя репозитория на GitHub Pages
+    const defaultBase = (window.location.origin || '') + repoPrefix + 'redirect/'; // Собираем дефолтный адрес вида https://host/repo/redirect/
+    return (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || defaultBase; // Возвращаем адрес из конфига или рассчитанный дефолт
   }
 
   function preloadAssetsAndAnimate(banks) { // Предзагружаем фон и логотипы, затем показываем кнопки
