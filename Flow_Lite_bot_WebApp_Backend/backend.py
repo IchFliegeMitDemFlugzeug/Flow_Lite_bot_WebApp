@@ -23,7 +23,7 @@ from schemas.link_payload import LinkBuilderRequest  # Тип запроса к 
 
 
 logging.basicConfig(  # Настраиваем базовый логгер с подробным форматом
-    level=logging.DEBUG,  # Ставим уровень DEBUG, чтобы видеть каждый шаг
+    level=logging.INFO,  # Ставим уровень DEBUG, чтобы видеть каждый шаг
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",  # Подробный формат сообщений
     datefmt="%Y-%m-%d %H:%M:%S",  # Формат даты для удобства чтения
 )  # Закрываем конфигурацию базового логгера
