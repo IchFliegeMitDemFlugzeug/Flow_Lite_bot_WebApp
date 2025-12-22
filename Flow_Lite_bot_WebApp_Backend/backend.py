@@ -4,6 +4,7 @@ from __future__ import annotations  # Включаем отложенные ан
 
 import json  # Работаем с JSON-телами запросов и ответов
 import logging  # Логируем ошибки и служебные события
+import sys  # Настраиваем sys.path для запуска из разных директорий
 import time  # Используем unix-время для TTL токенов
 import uuid  # Генерируем уникальные токены ссылок
 from datetime import datetime  # Создаём человекочитаемые метки времени
@@ -12,11 +13,13 @@ from pathlib import Path  # Работаем с путями до конфигу
 from typing import Dict, List, Tuple  # Типизация для читаемости кода
 from urllib.parse import parse_qs, urlparse  # Разбираем URL и query-параметры
 
-from sqlalchemy import text  # Формируем SQL для записи телеметрии
-from sqlalchemy.exc import SQLAlchemyError  # Ловим ошибки SQLAlchemy
+backend_root = Path(__file__).resolve().parent  # Абсолютный путь до каталога backend
+if str(backend_root) not in sys.path:  # Убеждаемся, что каталог в sys.path
+    sys.path.insert(0, str(backend_root))  # Добавляем путь, чтобы локальные модули находились
 
-from services.WebApp.link_builders import get_builder  # Подключаем реестр конструкторов deeplink-ссылок
-from services.WebApp.schemas.link_payload import LinkBuilderRequest  # Тип запроса к конструктору ссылок
+from db import save_webapp_event  # Импортируем запись событий в БД из локального модуля
+from link_builders import get_builder  # Подключаем реестр конструкторов deeplink-ссылок
+from schemas.link_payload import LinkBuilderRequest  # Тип запроса к конструктору ссылок
 
 
 logging.basicConfig(level=logging.INFO)  # Настраиваем базовый логгер
@@ -48,62 +51,6 @@ class LinkTokenStore:  # Простое хранилище токенов deepli
 
 
 token_store = LinkTokenStore()  # Глобальное хранилище токенов для страницы редиректа
-
-
-def _save_event_to_db(payload: dict) -> None:  # Пишем телеметрию о событиях Mini App в БД
-    from services.bot.database.storage import get_session  # Локальный импорт, чтобы не падать при отсутствии окружения
-
-    transfer_id: str = str(payload.get("transfer_id") or "")  # Извлекаем transfer_id из пакета
-    inline_payload_json: str = json.dumps(payload.get("transfer_payload") or {}, ensure_ascii=False)  # Сохраняем исходный пакет
-    inline_context_json: str = json.dumps(  # Собираем контекст инлайна отдельно
-        {
-            "creator_tg_user_id": payload.get("inline_creator_tg_user_id"),  # Автор инлайн-сообщения
-            "generated_at": payload.get("inline_generated_at"),  # Время генерации сообщения
-            "parsed": payload.get("inline_parsed") or {},  # Распарсенный контент
-            "option": payload.get("inline_option") or {},  # Выбранная опция перевода
-        },
-        ensure_ascii=False,
-    )
-
-    opener = (payload.get("initDataUnsafe") or {}).get("user") or {}  # Достаём информацию об открывшем Mini App
-    opener_tg_user_id = opener.get("id")  # Telegram ID открывшего
-    opener_json = json.dumps(opener, ensure_ascii=False)  # Полный объект открывшего
-    raw_init_data: str = payload.get("initData") or ""  # Сырая строка initData
-
-    sql = text(  # Формируем UPSERT для таблицы inline_webapp_events
-        """
-        INSERT INTO inline_webapp_events
-            (transfer_id, inline_payload_json, inline_context_json, opener_tg_user_id, opener_json, raw_init_data, created_at)
-        VALUES
-            (:transfer_id, :inline_payload_json, :inline_context_json, :opener_tg_user_id, :opener_json, :raw_init_data, CURRENT_TIMESTAMP)
-        ON DUPLICATE KEY UPDATE
-            inline_payload_json = VALUES(inline_payload_json),
-            inline_context_json = VALUES(inline_context_json),
-            opener_tg_user_id  = COALESCE(VALUES(opener_tg_user_id), opener_tg_user_id),
-            opener_json        = COALESCE(VALUES(opener_json), opener_json),
-            raw_init_data      = COALESCE(VALUES(raw_init_data), raw_init_data),
-            created_at         = created_at;
-        """
-    )
-
-    params = {  # Параметры для подстановки в SQL
-        "transfer_id": transfer_id,
-        "inline_payload_json": inline_payload_json,
-        "inline_context_json": inline_context_json,
-        "opener_tg_user_id": opener_tg_user_id,
-        "opener_json": opener_json,
-        "raw_init_data": raw_init_data,
-    }
-
-    try:  # Пытаемся записать событие
-        with get_session() as session:  # Открываем сессию SQLAlchemy
-            session.execute(sql, params)  # Выполняем UPSERT
-        logger.info("WebApp API: событие %s записано в БД", transfer_id)  # Логируем успешную запись
-    except SQLAlchemyError as exc:  # Ловим ошибки БД
-        logger.warning("WebApp API: ошибка БД при сохранении transfer_id=%s: %s", transfer_id, exc)  # Сообщаем о проблеме
-    except Exception as exc:  # Ловим любые другие исключения
-        logger.warning("WebApp API: неожиданная ошибка при сохранении transfer_id=%s: %s", transfer_id, exc)  # Пишем предупреждение
-
 
 def base64_decode(value: str) -> str:  # Вспомогательная функция для base64url
     import base64  # Импортируем локально, чтобы не засорять глобальные импорты
@@ -142,7 +89,7 @@ def detect_identifier(transfer_id: str, payload: dict) -> Tuple[str, str]:  # О
 
 
 def load_banks_config() -> List[dict]:  # Загружаем banks.json из конфигурации
-    config_path = Path(__file__).parent / "config" / "banks.json"  # Формируем путь до файла
+    config_path = Path(__file__).resolve().parent / "config" / "banks.json"  # Формируем путь до файла относительно backend.py
     with config_path.open("r", encoding="utf-8") as fp:  # Открываем файл в кодировке UTF-8
         return json.load(fp)  # Парсим JSON и возвращаем список банков
 
@@ -265,7 +212,7 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
             self.end_headers()  # Закрываем заголовки
             return  # Завершаем обработку
 
-        _save_event_to_db(payload)  # Пишем событие в БД (без падения при ошибках)
+        save_webapp_event(payload)  # Пишем событие в БД (без падения при ошибках)
 
         self.send_response(202)  # Возвращаем 202 Accepted
         self.end_headers()  # Закрываем заголовки

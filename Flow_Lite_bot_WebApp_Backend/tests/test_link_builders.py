@@ -2,9 +2,9 @@
 
 import unittest  # Стандартный модуль тестов
 
-from services.WebApp.link_builders.sber import build_sber_universal  # Проверяем сборку ссылки Сбера
-from services.WebApp.link_builders.tinkoff import build_tinkoff_phone  # Проверяем сборку ссылки Т-Банка
-from services.WebApp.link_builders.vtb import build_vtb_universal  # Проверяем сборку ссылки ВТБ
+from link_builders.sber import build_sber_universal  # Проверяем сборку ссылки Сбера
+from link_builders.tinkoff import build_tinkoff_phone  # Проверяем сборку ссылки Т-Банка
+from link_builders.vtb import build_vtb_universal  # Проверяем сборку ссылки ВТБ
 
 
 class LinkBuilderTests(unittest.TestCase):  # Группа тестов для конструкторов

@@ -5,7 +5,7 @@ from __future__ import annotations  # Поддерживаем отложенн�
 import json  # Сериализуем объект predefined
 from urllib.parse import quote  # Кодируем JSON параметра predefined в URL
 
-from services.WebApp.schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем схемы запросов и ответов
+from schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Импортируем схемы запросов и ответов
 
 
 def build_tinkoff_phone(payload: LinkBuilderRequest) -> LinkBuilderResult:

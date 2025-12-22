@@ -1,7 +1,7 @@
 """Локальный HTTP-сервер для раздачи `index.html` прямо из каталога WebApp.
 
 Запуск:
-    python services/WebApp/serve_index.py --port 8000
+    python Flow_Lite_bot_WebApp_Backend/serve_index.py --port 8000
 по умолчанию слушает 8000 порт и использует текущую директорию с `index.html`.
 """
 

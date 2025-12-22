@@ -13,7 +13,7 @@ from typing import Callable, Dict  # Импортируем типы для ре
 from .sber import build_sber_universal  # Строитель ссылок для Сбера по телефону или карте
 from .tinkoff import build_tinkoff_phone  # Строитель ссылок для Т-Банка по телефону
 from .vtb import build_vtb_universal  # Универсальный строитель ссылок для ВТБ
-from services.WebApp.schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Общие схемы запросов и ответов
+from schemas.link_payload import LinkBuilderRequest, LinkBuilderResult  # Общие схемы запросов и ответов
 
 # Реестр доступных конструкторов по идентификатору из banks.json
 BUILDER_REGISTRY: Dict[str, Callable[[LinkBuilderRequest], LinkBuilderResult]] = {
