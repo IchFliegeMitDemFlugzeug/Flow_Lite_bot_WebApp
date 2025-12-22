@@ -59,8 +59,35 @@
     window.history.back(); // В браузере без Telegram просто возвращаемся назад
   }
 
+  function openExternalLink(url) { // Открываем ссылку во внешнем браузере или новой вкладке
+    if (!url) { // Если URL не передан
+      return; // Ничего не делаем
+    }
+    const targetUrl = url.toString ? url.toString() : String(url); // Аккуратно приводим значение к строке
+
+    try { // Пробуем использовать API Telegram, если оно доступно
+      if (telegramApi && typeof telegramApi.openLink === 'function') { // Проверяем наличие метода openLink
+        telegramApi.openLink(targetUrl, { try_instant_view: false }); // Открываем ссылку без Instant View, чтобы выйти из WebView
+        return; // Завершаем выполнение после успешного вызова Telegram API
+      }
+    } catch (error) { // Если вызов Telegram API завершился ошибкой
+      console.debug('TelegramBridge: не удалось открыть ссылку через Telegram API', error); // Пишем диагностическое сообщение
+    }
+
+    try { // Пробуем открыть ссылку стандартными средствами браузера
+      const newWindow = window.open(targetUrl, '_blank'); // Пытаемся открыть в новой вкладке
+      if (!newWindow) { // Если браузер заблокировал pop-up
+        window.location.href = targetUrl; // Навигируем в текущей вкладке как запасной вариант
+      }
+    } catch (error) { // Если даже window.open выбросил исключение
+      console.debug('TelegramBridge: не удалось открыть ссылку в браузере, пробуем навигацию', error); // Логируем проблему
+      window.location.href = targetUrl; // Переходим на ссылку в текущем окне как последний шанс
+    }
+  }
+
   window.TelegramBridge = { // Экспортируем функции в глобальный объект
     getTelegramContext: getTelegramContext, // Делаем доступной функцию получения контекста
-    closeMiniApp: closeMiniApp // Делаем доступной функцию закрытия Mini App
+    closeMiniApp: closeMiniApp, // Делаем доступной функцию закрытия Mini App
+    openExternalLink: openExternalLink // Экспортируем функцию открытия внешней ссылки
   }; // Конец экспорта
 })(window); // Передаём глобальный объект window внутрь IIFE

@@ -5,7 +5,7 @@
     const query = new URLSearchParams(window.location.search); // Парсим параметры строки запроса
     const transferId = query.get('transfer_id') || ''; // Забираем transfer_id из адресной строки
     const bankId = query.get('bank_id') || ''; // Забираем id выбранного банка
-    const linkToken = query.get('link_token') || ''; // Токен ссылки, выданный backend
+    const linkToken = query.get('token') || query.get('link_token') || ''; // Токен ссылки, выданный backend
     const deeplinkParam = query.get('deeplink') || ''; // Подстраховочный deeplink из query
     const fallbackParam = query.get('fallback_url') || ''; // Подстраховочный fallback из query
     const telegramContext = window.TelegramBridge.getTelegramContext(); // Собираем контекст Telegram или браузера

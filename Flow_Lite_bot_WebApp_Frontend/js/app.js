@@ -124,23 +124,45 @@
   }
 
   function openRedirect(bank, telegramContext) { // Формируем ссылку на страницу редиректа и открываем её
-    const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Достаём transfer_id
-    const redirectUrl = new URL('./redirect/index.html', window.location.href); // Создаём URL страницы редиректа
-    redirectUrl.searchParams.set('transfer_id', transferId || ''); // Пробрасываем transfer_id как праметр
-    redirectUrl.searchParams.set('bank_id', bank.bank_id || bank.id || ''); // Передаём выбранный банк
-    if (bank.link_token) { // Если backend выдал токен
-      redirectUrl.searchParams.set('link_token', bank.link_token); // Добавляем токен ссылки
-    }
-    if (bank.deeplink) { // Если есть готовый deeplink
-      redirectUrl.searchParams.set('deeplink', bank.deeplink); // Подстраховываем deeplink в URL
-    }
-    if (bank.fallback_url) { // Если указан fallback
-      redirectUrl.searchParams.set('fallback_url', bank.fallback_url); // Добавляем fallback
+    const preparedUrl = buildRedirectUrl(bank, telegramContext); // Собираем безопасный URL для страницы редиректа
+
+    window.ApiClient.sendRedirectEvent(telegramContext, bank.bank_id || bank.id, 'redirect_prepare', 'miniapp', { link_token: bank.link_token || '' }); // Логируем факт подготовки редиректа
+
+    window.TelegramBridge.openExternalLink(preparedUrl); // Открываем ссылку во внешнем браузере или новой вкладке
+
+    setTimeout(function () { // Делаем короткую задержку, чтобы sendBeacon успел стартовать
+      window.TelegramBridge.closeMiniApp(); // Закрываем Mini App после запуска перехода
+    }, 200); // Укладываемся в диапазон 150–300 мс
+  }
+
+  function buildRedirectUrl(bank, telegramContext) { // Строим итоговый URL страницы редиректа
+    const redirectBase = (window.AppConfig && window.AppConfig.REDIRECT_BASE_URL) || (window.location.origin + '/redirect/'); // Берём базовый адрес редиректа из конфига или формируем от origin
+    const redirectUrl = new URL(redirectBase, window.location.href); // Создаём объект URL для удобной работы с параметрами
+    const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Достаём transfer_id для телеметрии редиректа
+    const bankId = bank.bank_id || bank.id || ''; // Безопасно получаем идентификатор банка
+
+    if (bankId) { // Если id банка известен
+      redirectUrl.searchParams.set('bank_id', bankId); // Добавляем его как query-параметр
     }
 
-    const fullUrl = redirectUrl.toString(); // Получаем итоговую строку URL
+    if (transferId) { // Если есть transfer_id
+      redirectUrl.searchParams.set('transfer_id', transferId); // Добавляем его для трейсинга на странице редиректа
+    }
 
-    window.location.href = fullUrl; // В любом окружении переходим на страницу редиректа внутри WebView
+    if (bank.link_token) { // Если backend выдал link_token
+      redirectUrl.searchParams.set('token', bank.link_token); // Используем токен как основной способ получения ссылок
+      return redirectUrl.toString(); // Возвращаем сформированную строку
+    }
+
+    if (bank.deeplink) { // Если токена нет, но есть deeplink
+      redirectUrl.searchParams.set('deeplink', bank.deeplink); // Пробрасываем deeplink как запасной вариант
+    }
+
+    if (bank.fallback_url) { // Если есть fallback_url
+      redirectUrl.searchParams.set('fallback_url', bank.fallback_url); // Добавляем fallback для редирект-страницы
+    }
+
+    return redirectUrl.toString(); // Возвращаем итоговый URL с доступными параметрами
   }
 
   function preloadAssetsAndAnimate(banks) { // Предзагружаем фон и логотипы, затем показываем кнопки
