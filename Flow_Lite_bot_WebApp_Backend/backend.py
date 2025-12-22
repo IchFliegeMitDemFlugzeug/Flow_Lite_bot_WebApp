@@ -30,6 +30,18 @@ logging.basicConfig(  # Настраиваем базовый логгер с п
 logger = logging.getLogger(__name__)  # Получаем логгер этого модуля
 
 
+def humanize_bytes(value: bytes | str) -> str:  # Делаем байтовые/экранированные строки читабельными в логах
+    text = (  # Приводим вход к строке для дальнейшей обработки
+        value.decode("utf-8", errors="replace") if isinstance(value, (bytes, bytearray)) else str(value)
+    )  # Если пришли байты — декодируем в UTF-8 с заменой ошибок, иначе просто str()
+    try:  # Пробуем понять, нужна ли дополнительная «распаковка» \x-последовательностей
+        if "\\x" in text:  # Если в строке есть символы вида "\xHH", значит лог покажет нечитаемую байтовую маску
+            return text.encode("latin-1", errors="replace").decode("utf-8", errors="replace")  # Восстанавливаем текст через latin-1 → utf-8
+    except Exception:  # Если что-то пошло не так
+        return text  # Возвращаем уже подготовленный текст без падения
+    return text  # Если дополнительных преобразований не требуется, отдаём базовую строку
+
+
 class LinkTokenStore:  # Простое хранилище токенов deeplink-ссылок с TTL
     def __init__(self, ttl_seconds: int = 300) -> None:  # Конструктор принимает TTL в секундах
         self.ttl_seconds = ttl_seconds  # Сохраняем время жизни токенов
@@ -72,7 +84,9 @@ def base64_decode(value: str) -> str:  # Вспомогательная функ
 
     logger.debug("Base64 decode: входное значение %s", value)  # Логируем входное значение
     decoded_bytes = base64.b64decode(value.encode("utf-8"))  # Декодируем строку в байты
-    logger.debug("Base64 decode: получили байты %s", decoded_bytes)  # Фиксируем промежуточный результат
+    logger.debug(  # Фиксируем промежуточный результат понятным текстом
+        "Base64 decode: получили строку %s", humanize_bytes(decoded_bytes)
+    )  # Применяем humanize_bytes, чтобы байты не распечатывались в виде \x-последовательностей
     return decoded_bytes.decode("utf-8")  # Превращаем байты обратно в строку
 
 
@@ -94,22 +108,75 @@ def decode_transfer_payload(start_param: str) -> dict:  # Раскодируем
 
 
 def detect_identifier(transfer_id: str, payload: dict) -> Tuple[str, str]:  # Определяем тип и значение реквизита
-    option = payload.get("option") or {}  # Берём опцию из полезной нагрузки
-    logger.debug("Detect identifier: получен payload %s и option %s", payload, option)  # Показываем исходные данные
-    if "phone" in option:  # Если в опции есть телефон
+    inner_payload = payload.get("payload") if isinstance(payload, dict) else {}  # Берём вложенный payload, если передан внешний контейнер
+    logger.debug("Detect identifier: передан внешний payload %s", payload)  # Показываем исходные данные целиком
+    if not isinstance(inner_payload, dict):  # Если вложенный payload не является словарём
+        inner_payload = payload if isinstance(payload, dict) else {}  # Используем исходный объект как рабочий
+    logger.debug("Detect identifier: используем внутренний payload %s", inner_payload)  # Фиксируем выбранный слой данных
+
+    raw_option = (inner_payload.get("option") if isinstance(inner_payload, dict) else None) or (  # Пробуем взять option из основной схемы
+        inner_payload.get("inline_option") if isinstance(inner_payload, dict) else None
+    )  # Если основного option нет, ищем inline_option
+    option = raw_option if isinstance(raw_option, dict) else {}  # Гарантируем, что option — словарь
+    logger.debug("Detect identifier: разобранный option %s", option)  # Показываем итоговый option
+
+    if "identifier" in option:  # Новая схема: идентификатор передаётся в поле identifier
+        raw_identifier = str(option.get("identifier"))  # Фиксируем исходное значение как строку
+        payment_type = (option.get("payment_type") or "").lower()  # Считываем тип платежа, если он указан
+        logger.debug(
+            "Detect identifier: найден identifier=%s с payment_type=%s",
+            raw_identifier,
+            payment_type,
+        )  # Сообщаем, что используем новую схему
+
+        normalized_phone = "".join(ch for ch in raw_identifier if ch.isdigit() or ch == "+")  # Для телефона оставляем + и цифры
+        normalized_card = "".join(ch for ch in raw_identifier if ch.isdigit())  # Для карты оставляем только цифры
+        logger.debug(
+            "Detect identifier: нормализованный телефон=%s, карта=%s",
+            normalized_phone,
+            normalized_card,
+        )  # Показываем варианты нормализации
+
+        identifier_type: str | None = None  # Подготовим переменную для типа реквизита
+        identifier_value: str | None = None  # И переменную для значения
+
+        if payment_type == "phone":  # Если явно указан телефон
+            identifier_type = "phone"  # Фиксируем тип phone
+            identifier_value = normalized_phone  # Используем телефонную нормализацию
+        elif payment_type == "card":  # Если явно указана карта
+            identifier_type = "card"  # Фиксируем тип card
+            identifier_value = normalized_card  # Используем карточную нормализацию
+        else:  # Если тип не указан, определяем по длине цифр
+            digits_only = "".join(ch for ch in raw_identifier if ch.isdigit())  # Берём только цифры для подсчёта длины
+            if 10 <= len(digits_only) <= 15:  # Диапазон телефона
+                identifier_type = "phone"  # Считаем идентификатор телефоном
+                identifier_value = normalized_phone  # Оставляем + и цифры
+            elif len(digits_only) >= 16:  # Минимальная длина, похожая на номер карты
+                identifier_type = "card"  # Считаем идентификатор картой
+                identifier_value = normalized_card  # Берём только цифры
+
+        if identifier_type and identifier_value:  # Если нам удалось классифицировать
+            logger.debug(  # Фиксируем успешную классификацию
+                "Detect identifier: классифицировано как %s со значением %s",
+                identifier_type,
+                identifier_value,
+            )
+            return identifier_type, identifier_value  # Возвращаем найденные данные
+
+    if "phone" in option:  # Старая схема: телефон лежит в поле phone
         logger.debug("Detect identifier: найден phone %s", option.get("phone"))  # Логируем найденный телефон
         return "phone", str(option.get("phone"))  # Возвращаем тип phone и его значение
-    if "card" in option:  # Если есть карта
+    if "card" in option:  # Старая схема: карта лежит в поле card
         logger.debug("Detect identifier: найдена карта %s", option.get("card"))  # Логируем найденную карту
         return "card", str(option.get("card"))  # Возвращаем тип card и значение
 
-    digits_only = "".join(ch for ch in transfer_id if ch.isdigit() or ch == "+")  # Фильтруем transfer_id до цифр
-    logger.debug("Detect identifier: очищенное значение transfer_id %s", digits_only)  # Показываем очищенные данные
-    if len(digits_only) >= 10 and len(digits_only) <= 15:  # Если похоже на телефон
-        logger.debug("Detect identifier: классифицируем как phone %s", digits_only)  # Фиксируем классификацию телефона
+    digits_only = "".join(ch for ch in transfer_id if ch.isdigit() or ch == "+")  # Fallback: берём только цифры из transfer_id
+    logger.debug("Detect identifier: fallback очищенное значение transfer_id %s", digits_only)  # Показываем очищенные данные
+    if 10 <= len(digits_only) <= 15:  # Если похоже на телефон
+        logger.debug("Detect identifier: классифицируем fallback как phone %s", digits_only)  # Фиксируем классификацию телефона
         return "phone", digits_only  # Возвращаем тип phone
     if len(digits_only) >= 16:  # Если похоже на карту
-        logger.debug("Detect identifier: классифицируем как card %s", digits_only)  # Фиксируем классификацию карты
+        logger.debug("Detect identifier: классифицируем fallback как card %s", digits_only)  # Фиксируем классификацию карты
         return "card", digits_only  # Возвращаем тип card
 
     raise ValueError("Невозможно определить тип идентификатора")  # Сообщаем о невозможности распознать реквизит
@@ -128,10 +195,20 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
     logger.debug("Build links: стартуем генерацию для transfer_id %s", transfer_id)  # Сообщаем о старте генерации
     payload = decode_transfer_payload(transfer_id)  # Пытаемся распаковать transfer_id
     logger.debug("Build links: декодированный payload %s", payload)  # Логируем результат декодирования
-    identifier_type, identifier_value = detect_identifier(transfer_id, payload)  # Определяем тип реквизита
+    inner_payload = payload.get("payload") if isinstance(payload, dict) else {}  # Берём вложенный payload, если он есть
+    if not isinstance(inner_payload, dict):  # Если вложенный слой оказался не словарём
+        inner_payload = payload if isinstance(payload, dict) else {}  # Используем внешний payload как рабочий
+    logger.debug("Build links: внутренний payload для опций %s", inner_payload)  # Фиксируем слой данных для option
+
+    identifier_type, identifier_value = detect_identifier(transfer_id, payload)  # Определяем тип реквизита на полном payload
     logger.debug(
         "Build links: определили идентификатор type=%s value=%s", identifier_type, identifier_value
     )  # Фиксируем тип и значение реквизита
+
+    option = (inner_payload.get("option") if isinstance(inner_payload, dict) else None) or (  # Берём option или inline_option
+        inner_payload.get("inline_option") if isinstance(inner_payload, dict) else None
+    )  # Это позволит корректно передать сумму/комментарий из новой схемы
+    option = option if isinstance(option, dict) else {}  # Гарантируем, что option — словарь даже при странных данных
 
     banks = load_banks_config()  # Читаем метаданные банков из файла
     logger.debug("Build links: загружено банков %s", len(banks))  # Сообщаем количество банков
@@ -178,8 +255,8 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
         request_payload: LinkBuilderRequest = {  # Готовим payload для конструктора
             "identifier_type": identifier_type,
             "identifier_value": identifier_value,
-            "amount": str((payload.get("option") or {}).get("amount") or ""),
-            "comment": str((payload.get("option") or {}).get("comment") or ""),
+            "amount": str(option.get("amount") or ""),  # Передаём сумму из корректного option
+            "comment": str(option.get("comment") or ""),  # Передаём комментарий из корректного option
             "extra": payload,
         }
         logger.debug(
@@ -277,7 +354,9 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         content_length = int(self.headers.get("content-length", 0))  # Узнаём длину тела запроса
         raw_body = self.rfile.read(content_length) if content_length > 0 else b""  # Читаем тело запроса
         logger.info("WebApp API: POST %s, bytes=%s", self.path, content_length)  # Логируем путь и размер тела
-        logger.debug("WebApp API: сырое тело POST %s", raw_body)  # Показываем сырое тело запроса
+        logger.debug(  # Показываем сырое тело запроса в человекочитаемом виде
+            "WebApp API: сырое тело POST %s", humanize_bytes(raw_body)
+        )  # Преобразуем байты через humanize_bytes, чтобы избежать \x-выводов
 
         try:  # Пробуем распарсить JSON
             payload = json.loads(raw_body.decode("utf-8") or "{}")  # Получаем словарь из тела
