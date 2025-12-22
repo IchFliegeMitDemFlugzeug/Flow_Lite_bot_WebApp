@@ -1,6 +1,8 @@
 (function (window, document) { // Изолируем конфиг в IIFE, чтобы не засорять глобальную область
   const DEFAULT_BACKEND_BASE_URL = 'https://shadow-verification-acm-river.trycloudflare.com'; // Базовый HTTPS-адрес по умолчанию
-  const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + '/redirect/'; // Базовый адрес страницы редиректа по умолчанию
+  const pathSegments = (window.location && window.location.pathname ? window.location.pathname.split('/').filter(Boolean) : []); // Разбиваем текущий путь на части и убираем пустые элементы
+  const repoPrefix = pathSegments.length ? '/' + pathSegments[0] + '/' : '/'; // Берём первую папку (например, имя репозитория на GitHub Pages) или корень
+  const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + repoPrefix + 'redirect/'; // Базовый адрес страницы редиректа, учитывающий вложенность сайта
 
   function readBackendFromWindow() { // Пробуем взять адрес из window.__BACKEND_BASE_URL__
     const rawValue = (window.__BACKEND_BASE_URL__ || '').toString(); // Приводим значение к строке, даже если оно не строковое
