@@ -35,11 +35,20 @@
       console.debug('ApiClient: BASE_URL не указан, пропускаем отправку'); // Сообщаем в debug и выходим
       return; // Прекращаем выполнение
     }
+    const payloadString = JSON.stringify(jsonBody || {}); // Безопасно сериализуем данные в строку
     try { // Ловим синхронные исключения
-      fetch(TELEMETRY_URL, { // Делаем POST на базовый URL
+      if (navigator.sendBeacon) { // Если браузер поддерживает надёжную отправку фоновых событий
+        const beaconBody = new Blob([payloadString], { type: 'text/plain;charset=UTF-8' }); // Заворачиваем строку в Blob без JSON-заголовка
+        const queued = navigator.sendBeacon(TELEMETRY_URL, beaconBody); // Отправляем событие через sendBeacon
+        if (queued) { // Если браузер принял задачу в очередь
+          return; // Завершаем без дополнительного запроса
+        }
+      }
+
+      fetch(TELEMETRY_URL, { // Делаем POST на базовый URL в качестве запасного варианта
         method: 'POST', // Используем метод POST
-        headers: { 'Content-Type': 'application/json' }, // Передаём JSON в теле
-        body: JSON.stringify(jsonBody) // Сериализуем объект в строку
+        body: payloadString, // Передаём сериализованную строку без заголовков
+        keepalive: true // Разрешаем отправку даже при закрытии страницы
       })
         .then(function () { // Обрабатываем успешный ответ
           return null; // Ничего не делаем с ответом, UI не трогаем

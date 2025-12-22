@@ -188,6 +188,17 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
 
 
 class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обработчик HTTP-запросов
+    def _apply_cors_headers(self) -> None:  # Добавляем CORS-заголовки во все ответы
+        origin = self.headers.get("Origin") or "*"  # Определяем Origin клиента или ставим * по умолчанию
+        self.send_header("Access-Control-Allow-Origin", origin)  # Разрешаем доступ с указанного Origin (или со всех)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")  # Перечисляем разрешённые методы
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")  # Разрешаем заголовок Content-Type
+        self.send_header("Vary", "Origin")  # Сообщаем кэшу, что ответ зависит от Origin
+
+    def end_headers(self) -> None:  # Переопределяем закрытие заголовков, чтобы всегда добавлять CORS
+        self._apply_cors_headers()  # Вставляем CORS перед отправкой заголовков клиенту
+        super().end_headers()  # Вызываем стандартную реализацию завершения заголовков
+
     def _send_json(self, payload: dict, status_code: int = 200) -> None:  # Отправляем JSON-ответ
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")  # Сериализуем payload в байты
         self.send_response(status_code)  # Ставим HTTP-статус
@@ -195,6 +206,11 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         self.send_header("Content-Length", str(len(body)))  # Передаём длину тела
         self.end_headers()  # Закрываем заголовки
         self.wfile.write(body)  # Пишем тело ответа
+
+    def do_OPTIONS(self) -> None:  # Отвечаем на preflight-запросы браузера
+        self.send_response(204)  # Отдаём статус 204 No Content
+        self.send_header("Content-Length", "0")  # Сообщаем, что тела нет
+        self.end_headers()  # Закрываем заголовки с включёнными CORS
 
     def do_POST(self) -> None:  # Обрабатываем POST-запросы
         if self.path != "/api/webapp":  # Проверяем путь
@@ -204,18 +220,21 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
         content_length = int(self.headers.get("content-length", 0))  # Узнаём длину тела запроса
         raw_body = self.rfile.read(content_length) if content_length > 0 else b""  # Читаем тело запроса
+        logger.info("WebApp API: POST %s, bytes=%s", self.path, content_length)  # Логируем путь и размер тела
 
         try:  # Пробуем распарсить JSON
             payload = json.loads(raw_body.decode("utf-8") or "{}")  # Получаем словарь из тела
         except json.JSONDecodeError:  # Если JSON некорректный
             self.send_response(400)  # Отдаём 400 Bad Request
             self.end_headers()  # Закрываем заголовки
+            logger.info("WebApp API: POST %s завершён с 400 (некорректный JSON)", self.path)  # Фиксируем ошибку формата
             return  # Завершаем обработку
 
         save_webapp_event(payload)  # Пишем событие в БД (без падения при ошибках)
 
         self.send_response(202)  # Возвращаем 202 Accepted
         self.end_headers()  # Закрываем заголовки
+        logger.info("WebApp API: POST %s завершён с 202 Accepted", self.path)  # Фиксируем успешный приём события
 
     def do_GET(self) -> None:  # Обрабатываем GET-запросы
         parsed = urlparse(self.path)  # Разбираем URL
@@ -224,6 +243,8 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         if parsed.path.startswith("/api/links/"):  # Эндпоинт для получения ссылки по токену
             token = parsed.path.split("/api/links/")[-1]  # Извлекаем токен из пути
             return self._handle_link_token(token)  # Обрабатываем запрос
+        if parsed.path == "/api/webapp":  # Пинг-эндпоинт для проверки доступности из браузера
+            return self._send_json({"ok": True}, status_code=200)  # Возвращаем успешный ответ
 
         self.send_response(404)  # Неизвестный путь — 404
         self.end_headers()  # Закрываем заголовки
