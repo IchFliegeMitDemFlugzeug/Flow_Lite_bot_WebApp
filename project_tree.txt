@@ -1,4 +1,7 @@
 Flow_Lite_bot_WebApp
+├── .github
+│   └── workflows
+│       └── deploy-pages.yml
 ├── Flow_Lite_bot_WebApp_Backend
 │   ├── config
 │   │   └── banks.json
@@ -8,12 +11,16 @@ Flow_Lite_bot_WebApp
 │   │   ├── tinkoff.py
 │   │   └── vtb.py
 │   ├── schemas
+│   │   ├── __init__.py
 │   │   └── link_payload.py
 │   ├── tests
+│   │   ├── conftest.py
 │   │   ├── test_api_links.py
 │   │   └── test_link_builders.py
 │   ├── README.md
 │   ├── backend.py
+│   ├── db.py
+│   ├── requirements.txt
 │   └── serve_index.py
 ├── Flow_Lite_bot_WebApp_Frontend
 │   ├── assets
@@ -52,6 +59,8 @@ Flow_Lite_bot_WebApp
 │   ├── css
 │   │   └── app.css
 │   ├── js
+│   │   ├── constants
+│   │   │   └── config.js
 │   │   ├── api.js
 │   │   ├── app.js
 │   │   ├── banks.js
@@ -75,4 +84,6 @@ Flow_Lite_bot_WebApp
 │   └── redirect.html
 ├── .gitattributes
 ├── .gitignore
-└── export_tree.py
+├── export_tree.py
+├── log.txt
+└── project_tree.txt
