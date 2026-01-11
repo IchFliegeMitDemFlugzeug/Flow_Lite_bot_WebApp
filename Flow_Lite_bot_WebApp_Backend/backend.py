@@ -2,6 +2,7 @@
 
 from __future__ import annotations  # Включаем отложенные аннотации для читаемости
 
+import hashlib  # Считаем SHA-256 для чувствительных данных
 import json  # Работаем с JSON-телами запросов и ответов
 import logging  # Логируем ошибки и служебные события
 import os  # Читаем переменные окружения для настройки сервера
@@ -11,7 +12,7 @@ import uuid  # Генерируем уникальные токены ссыло
 from datetime import datetime  # Создаём человекочитаемые метки времени
 from http.server import BaseHTTPRequestHandler, HTTPServer  # Минимальный HTTP-сервер из стандартной библиотеки
 from pathlib import Path  # Работаем с путями до конфигураций
-from typing import Dict, List, Tuple  # Типизация для читаемости кода
+from typing import Any, Dict, List, Tuple  # Типизация для читаемости кода
 from urllib.parse import parse_qs, urlparse  # Разбираем URL и query-параметры
 
 backend_root = Path(__file__).resolve().parent  # Абсолютный путь до каталога backend
@@ -30,6 +31,9 @@ logging.basicConfig(  # Настраиваем базовый логгер с п
 )  # Закрываем конфигурацию базового логгера
 logger = logging.getLogger(__name__)  # Получаем логгер этого модуля
 
+DEBUG_LOG_MAX_BODY_BYTES = 256 * 1024  # Ограничиваем размер тела для debug-логов (256 КБ)
+DEBUG_LOG_MAX_STRING_LENGTH = 2000  # Ограничиваем длину строк внутри debug-логов
+
 
 def humanize_bytes(value: bytes | str) -> str:  # Делаем байтовые/экранированные строки читабельными в логах
     text = (  # Приводим вход к строке для дальнейшей обработки
@@ -41,6 +45,41 @@ def humanize_bytes(value: bytes | str) -> str:  # Делаем байтовые/
     except Exception:  # Если что-то пошло не так
         return text  # Возвращаем уже подготовленный текст без падения
     return text  # Если дополнительных преобразований не требуется, отдаём базовую строку
+
+
+def ensure_debug_logs_dir() -> Path:  # Гарантируем наличие папки для debug-логов фронтенда
+    logs_dir = backend_root / "logs"  # Формируем путь до backend/logs относительно backend.py
+    logs_dir.mkdir(parents=True, exist_ok=True)  # Создаём каталог, если его ещё нет
+    return logs_dir  # Возвращаем путь до каталога логов
+
+
+def compute_initdata_sha256(value: str) -> str:  # Считаем SHA-256 для строки initData
+    payload = value.encode("utf-8", errors="replace")  # Превращаем строку в байты с защитой от ошибок
+    return hashlib.sha256(payload).hexdigest()  # Возвращаем hex-представление хеша
+
+
+def truncate_string(value: str, max_length: int) -> str:  # Обрезаем длинные строки до допустимого размера
+    if len(value) <= max_length:  # Если строка уже короче лимита
+        return value  # Возвращаем её без изменений
+    return value[:max_length]  # Обрезаем строку по лимиту, чтобы запись была безопасной
+
+
+def sanitize_debug_payload(payload: Any, max_string_length: int) -> Any:  # Удаляем initData и ограничиваем длину строк
+    if isinstance(payload, dict):  # Если пришёл словарь
+        sanitized: Dict[str, Any] = {}  # Создаём новый словарь для безопасных данных
+        for key, value in payload.items():  # Обходим все ключи и значения
+            if key == "initData":  # Если ключ содержит сырую initData
+                raw_value = value if isinstance(value, str) else str(value)  # Приводим initData к строке
+                sanitized["initDataLen"] = len(raw_value)  # Записываем длину initData
+                sanitized["initDataSha256"] = compute_initdata_sha256(raw_value)  # Пишем SHA-256 вместо initData
+                continue  # Не сохраняем исходный initData
+            sanitized[key] = sanitize_debug_payload(value, max_string_length)  # Рекурсивно обрабатываем вложенные поля
+        return sanitized  # Возвращаем очищенный словарь
+    if isinstance(payload, list):  # Если пришёл список
+        return [sanitize_debug_payload(item, max_string_length) for item in payload]  # Очищаем каждый элемент списка
+    if isinstance(payload, str):  # Если пришла строка
+        return truncate_string(payload, max_string_length)  # Обрезаем строку до лимита
+    return payload  # Для остальных типов возвращаем значение без изменений
 
 
 class LinkTokenStore:  # Простое хранилище токенов deeplink-ссылок с TTL
@@ -341,12 +380,62 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         self.wfile.write(body)  # Пишем тело ответа
         logger.debug("HTTP: JSON отправлен, байт=%s", len(body))  # Подтверждаем отправку
 
+    def _read_json_body_with_limit(self, max_bytes: int) -> dict | None:  # Читаем JSON-тело с лимитом размера
+        content_length = int(self.headers.get("content-length", 0))  # Узнаём длину тела запроса
+        if content_length > max_bytes:  # Если тело больше допустимого лимита
+            self.send_response(400)  # Возвращаем 400 Bad Request
+            self.end_headers()  # Закрываем заголовки
+            logger.info(  # Логируем причину отказа
+                "Debug log: тело запроса слишком большое (%s байт > %s)", content_length, max_bytes
+            )
+            return None  # Сигнализируем, что обработку нужно остановить
+
+        raw_body = self.rfile.read(content_length) if content_length > 0 else b""  # Читаем тело запроса
+        if len(raw_body) > max_bytes:  # Дополнительная проверка на случай неверного Content-Length
+            self.send_response(400)  # Возвращаем 400 Bad Request
+            self.end_headers()  # Закрываем заголовки
+            logger.info("Debug log: тело запроса превышает лимит после чтения")  # Логируем нарушение лимита
+            return None  # Останавливаем обработку
+
+        try:  # Пробуем распарсить JSON
+            payload = json.loads(raw_body.decode("utf-8") or "{}")  # Декодируем строку JSON или пустой объект
+            logger.debug("Debug log: распарсили JSON %s", payload)  # Логируем разобранный payload
+            return payload  # Возвращаем распарсенный объект
+        except json.JSONDecodeError:  # Если JSON некорректный
+            self.send_response(400)  # Отдаём 400 Bad Request
+            self.end_headers()  # Закрываем заголовки
+            logger.info("Debug log: некорректный JSON в теле запроса")  # Фиксируем ошибку формата
+            return None  # Останавливаем обработку
+
+    def _handle_debug_log(self) -> None:  # Обрабатываем POST /api/debug/log
+        payload = self._read_json_body_with_limit(DEBUG_LOG_MAX_BODY_BYTES)  # Читаем JSON с лимитом 256 КБ
+        if payload is None:  # Если чтение завершилось ошибкой
+            return  # Уже отправили ответ, выходим
+        if not isinstance(payload, dict):  # Проверяем, что пришёл объект
+            self.send_response(400)  # Возвращаем 400 Bad Request
+            self.end_headers()  # Закрываем заголовки
+            logger.info("Debug log: ожидался JSON-объект, получено %s", type(payload))  # Логируем проблему
+            return  # Завершаем обработку
+
+        sanitized_payload = sanitize_debug_payload(payload, DEBUG_LOG_MAX_STRING_LENGTH)  # Удаляем initData и режем строки
+        logs_dir = ensure_debug_logs_dir()  # Гарантируем наличие папки для логов
+        date_tag = datetime.utcnow().strftime("%Y-%m-%d")  # Получаем текущую дату по UTC
+        log_path = logs_dir / f"frontend_{date_tag}.jsonl"  # Формируем путь до файла JSONL
+        with log_path.open("a", encoding="utf-8") as log_file:  # Открываем файл на дозапись
+            log_file.write(json.dumps(sanitized_payload, ensure_ascii=False) + "\n")  # Пишем одну JSON-строку
+
+        self.send_response(202)  # Возвращаем 202 Accepted
+        self.end_headers()  # Закрываем заголовки
+        logger.info("Debug log: запись сохранена в %s", log_path)  # Сообщаем о сохранении логов
+
     def do_OPTIONS(self) -> None:  # Отвечаем на preflight-запросы браузера
         self.send_response(204)  # Отдаём статус 204 No Content
         self.send_header("Content-Length", "0")  # Сообщаем, что тела нет
         self.end_headers()  # Закрываем заголовки с включёнными CORS
 
     def do_POST(self) -> None:  # Обрабатываем POST-запросы
+        if self.path == "/api/debug/log":  # Проверяем debug-эндпоинт для логов фронтенда
+            return self._handle_debug_log()  # Передаём управление в обработчик debug-лога
         if self.path != "/api/webapp":  # Проверяем путь
             self.send_response(404)  # Если путь неизвестен — отдаём 404
             self.end_headers()  # Закрываем заголовки

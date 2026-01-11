@@ -4,6 +4,12 @@
     const backButton = document.querySelector('.back-btn'); // Находим кнопку "← Вернуться"
     const telegramContext = window.TelegramBridge.getTelegramContext(); // Собираем контекст Telegram (или браузера)
     const transferId = telegramContext.startParam || (telegramContext.initDataUnsafe ? telegramContext.initDataUnsafe.start_param : ''); // Забираем transfer_id для запросов
+    if (window.PFLogger && window.PFLogger.info) { // Проверяем, что логгер доступен
+      window.PFLogger.info('computed transferId', { // Логируем вычисленный transferId
+        transferId: transferId, // Передаём рассчитанный transferId
+        href: window.location.href // Добавляем URL страницы для контекста
+      }); // Завершаем логирование transferId
+    } // Завершаем проверку логгера
     const linkCache = new Map(); // Кэшируем загруженные ссылки, чтобы не повторять запросы
     let linksPromise = null; // Храним единственный промис загрузки ссылок, чтобы не дёргать backend много раз
 
@@ -20,6 +26,11 @@
           if (linksPromise) { // Если загрузка уже идёт
             return linksPromise; // Возвращаем существующий промис
           } // Завершаем проверку
+          if (window.PFLogger && window.PFLogger.info) { // Проверяем, что логгер доступен
+            window.PFLogger.info('calling /api/links', { // Логируем будущий запрос к /api/links
+              transfer_id: transferId // Логируем transfer_id для запроса
+            }); // Завершаем логирование запроса /api/links
+          } // Завершаем проверку логгера
           linksPromise = window.ApiClient.fetchBankLinks(transferId) // Запрашиваем ссылки только по требованию
             .then(function (links) { // После успешного ответа
               (links || []).forEach(function (link) { // Перебираем каждую ссылку

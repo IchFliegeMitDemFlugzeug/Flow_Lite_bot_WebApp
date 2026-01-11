@@ -32,6 +32,19 @@
     const initDataUnsafe = telegramApi ? telegramApi.initDataUnsafe || {} : {}; // Безопасный объект initDataUnsafe с деталями
     const user = initDataUnsafe && initDataUnsafe.user ? initDataUnsafe.user : undefined; // Пользователь, если Telegram его передал
     const startParam = telegramApi && telegramApi.startParam ? telegramApi.startParam : initDataUnsafe.start_param; // Стартовый параметр или transfer_id
+    const hasTelegramWebApp = Boolean(telegramApi); // Фиксируем наличие Telegram.WebApp в окружении
+    const initDataLen = initData ? initData.length : 0; // Считаем длину initData, не сохраняя саму строку
+    const initUnsafeKeys = Object.keys(initDataUnsafe || {}); // Берём список ключей initDataUnsafe для диагностики
+    const href = window.location.href; // Сохраняем текущий URL страницы
+    if (window.PFLogger && window.PFLogger.info) { // Проверяем, что логгер доступен
+      window.PFLogger.info('telegram context', { // Отправляем безопасные данные контекста
+        hasTelegramWebApp: hasTelegramWebApp, // Показываем, есть ли Telegram.WebApp
+        startParam: startParam, // Логируем startParam без изменения
+        initDataLen: initDataLen, // Логируем длину initData
+        initUnsafeKeys: initUnsafeKeys, // Логируем ключи initDataUnsafe
+        href: href // Логируем URL страницы
+      }); // Завершаем логирование контекста
+    } // Завершаем проверку наличия логгера
     const transferPayload = decodeTransferPayload(startParam); // Пытаемся извлечь полезную нагрузку из transfer_id
     const platform = telegramApi && telegramApi.platform ? telegramApi.platform : 'browser'; // Платформа, полученная из Telegram
     const version = telegramApi && telegramApi.version ? telegramApi.version : 'unknown'; // Версия Telegram WebApp
