@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Tuple  # Типизация для чита�
 from urllib.parse import parse_qs, urlparse  # Разбираем URL и query-параметры
 
 backend_root = Path(__file__).resolve().parent  # Абсолютный путь до каталога backend
+FRONTEND_LOGS_DIR_NAME = "logs"  # Имя папки для логов фронтенда внутри backend
+FRONTEND_LOGS_DIR = backend_root / FRONTEND_LOGS_DIR_NAME  # Абсолютный путь до папки Flow_Lite_bot_WebApp_Backend/logs
 if str(backend_root) not in sys.path:  # Убеждаемся, что каталог в sys.path
     sys.path.insert(0, str(backend_root))  # Добавляем путь, чтобы локальные модули находились
 
@@ -48,9 +50,8 @@ def humanize_bytes(value: bytes | str) -> str:  # Делаем байтовые/
 
 
 def ensure_debug_logs_dir() -> Path:  # Гарантируем наличие папки для debug-логов фронтенда
-    logs_dir = backend_root / "logs"  # Формируем путь до backend/logs относительно backend.py
-    logs_dir.mkdir(parents=True, exist_ok=True)  # Создаём каталог, если его ещё нет
-    return logs_dir  # Возвращаем путь до каталога логов
+    FRONTEND_LOGS_DIR.mkdir(parents=True, exist_ok=True)  # Создаём каталог логов, если его ещё нет
+    return FRONTEND_LOGS_DIR  # Возвращаем путь до каталога логов фронтенда
 
 
 def compute_initdata_sha256(value: str) -> str:  # Считаем SHA-256 для строки initData
