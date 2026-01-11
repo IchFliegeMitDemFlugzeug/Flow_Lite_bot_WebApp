@@ -1,8 +1,7 @@
 (function (window, document) { // Изолируем конфиг в IIFE, чтобы не засорять глобальную область
-  const DEFAULT_BACKEND_BASE_URL = 'https://shadow-verification-acm-river.trycloudflare.com'; // Базовый HTTPS-адрес по умолчанию
+  const DEFAULT_BACKEND_BASE_URL = (window.location && window.location.origin) ? window.location.origin : ''; // Базовый адрес backend по умолчанию на текущем домене
   const DEFAULT_ASSETS_VERSION = (window.APP_ASSETS_VERSION || '2025-12-22-1').toString(); // Версия ассетов для кэша браузера
-  const repoPrefix = '/Flow_Lite_bot_WebApp/'; // Жёстко задаём имя репозитория, чтобы GitHub Pages всегда отдавал правильный путь
-  const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + repoPrefix + 'redirect/'; // Базовый адрес страницы редиректа, учитывающий вложенность сайта
+  const DEFAULT_REDIRECT_BASE_URL = (window.location && window.location.origin ? window.location.origin : '') + '/redirect/'; // Базовый адрес страницы редиректа для IIS
 
   function readBackendFromWindow() { // Пробуем взять адрес из window.__BACKEND_BASE_URL__
     const rawValue = (window.__BACKEND_BASE_URL__ || '').toString(); // Приводим значение к строке, даже если оно не строковое
@@ -45,7 +44,7 @@
       return fromMeta; // Используем его
     }
 
-    return DEFAULT_BACKEND_BASE_URL; // В противном случае возвращаем дефолтный HTTPS-туннель
+    return DEFAULT_BACKEND_BASE_URL; // В противном случае возвращаем текущий origin как базовый адрес
   }
 
   function resolveRedirectBaseUrl() { // Определяем итоговый базовый адрес страницы редиректа

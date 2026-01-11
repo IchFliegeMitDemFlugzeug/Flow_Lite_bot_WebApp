@@ -1,8 +1,26 @@
 (function (app) { // Оборачиваем в немедленно вызываемую функцию, чтобы не засорять глобальную область
   const namespace = app; // Берём ссылку на пространство имён приложения
-  const BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || 'https://shadow-verification-acm-river.trycloudflare.com'; // Забираем базовый адрес из конфигурации или используем HTTPS по умолчанию
+  const DEFAULT_BACKEND_BASE_URL = (window.location && window.location.origin) ? window.location.origin : ''; // Базовый адрес backend на текущем домене
+  const CONFIGURED_BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || ''; // Опционально берём адрес из конфигурации
+  const BACKEND_BASE_URL = CONFIGURED_BACKEND_BASE_URL || DEFAULT_BACKEND_BASE_URL; // Выбираем конфиг или текущий origin
+  const EVENT_PATH = '/api/webapp'; // Относительный путь для отправки событий
 
-  namespace.EVENT_ENDPOINT = `${BACKEND_BASE_URL}/api/webapp`; // Боевой endpoint бекенда для отправки событий с GitHub Pages
+  function buildEventEndpoint(path) { // Формируем URL для событий с учётом same-origin
+    if (!BACKEND_BASE_URL) { // Если базовый адрес пустой
+      return path; // Возвращаем относительный путь
+    } // Завершаем проверку
+    try { // Пытаемся собрать URL
+      const url = new URL(path, BACKEND_BASE_URL); // Создаём абсолютный адрес
+      if (window.location && url.origin === window.location.origin) { // Если домен совпадает с текущим
+        return path; // Отдаём относительный путь
+      } // Завершаем проверку домена
+      return url.toString(); // Возвращаем абсолютный адрес при override
+    } catch (error) { // Если сборка URL не удалась
+      return path; // Возвращаем относительный путь как безопасный вариант
+    } // Завершаем обработку исключений
+  }
+
+  namespace.EVENT_ENDPOINT = buildEventEndpoint(EVENT_PATH); // Endpoint бекенда для отправки событий через IIS proxy
   namespace.REDIRECT_PAGE = './redirect.html'; // Страница редиректа (расположена рядом с index.html)
 
   namespace.BANKS = [ // Массив с описанием банков и их ссылок

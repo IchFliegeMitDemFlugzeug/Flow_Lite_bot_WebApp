@@ -1,7 +1,27 @@
 (function (window) { // Изолируем клиент API в IIFE
-  const BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || 'https://shadow-verification-acm-river.trycloudflare.com'; // Забираем адрес бэкенда из конфигурации или берём дефолтный HTTPS
-  const TELEMETRY_URL = `${BACKEND_BASE_URL}/api/webapp`; // Полный путь приёма телеметрии на удалённом сервере
-  const LINKS_BASE_URL = `${BACKEND_BASE_URL}/api/links`; // Полный путь для динамических ссылок на удалённом сервере
+  const DEFAULT_BACKEND_BASE_URL = (window.location && window.location.origin) ? window.location.origin : ''; // По умолчанию используем текущий домен
+  const CONFIGURED_BACKEND_BASE_URL = (window.AppConfig && window.AppConfig.BACKEND_BASE_URL) || ''; // Берём адрес бэкенда из конфигурации, если он указан
+  const BACKEND_BASE_URL = CONFIGURED_BACKEND_BASE_URL || DEFAULT_BACKEND_BASE_URL; // Используем конфиг либо текущий origin
+  const TELEMETRY_PATH = '/api/webapp'; // Относительный путь для отправки телеметрии
+  const LINKS_PATH = '/api/links'; // Относительный путь для получения ссылок
+
+  function buildApiUrl(path) { // Формируем URL для API с учётом same-origin
+    if (!BACKEND_BASE_URL) { // Если базовый адрес пустой
+      return path; // Возвращаем относительный путь как есть
+    } // Завершаем проверку базового адреса
+    try { // Пытаемся корректно собрать URL
+      const url = new URL(path, BACKEND_BASE_URL); // Собираем абсолютный адрес на основе базового
+      if (window.location && url.origin === window.location.origin) { // Если адрес совпадает с текущим доменом
+        return path; // Возвращаем относительный путь, чтобы сохранить same-origin
+      } // Завершаем проверку домена
+      return url.toString(); // Возвращаем абсолютный URL для случаев с явным override
+    } catch (error) { // Если URL собрать не удалось
+      return path; // Возвращаем относительный путь, чтобы запрос всё равно ушёл
+    } // Завершаем обработку ошибок
+  }
+
+  const TELEMETRY_URL = buildApiUrl(TELEMETRY_PATH); // Готовим адрес приёма телеметрии
+  const LINKS_BASE_URL = buildApiUrl(LINKS_PATH); // Готовим базовый адрес для динамических ссылок
 
   function buildPayload(context, eventType, bankId, page, extra) { // Собираем единый объект полезной нагрузки
     const safeContext = context || {}; // Гарантируем наличие объекта контекста

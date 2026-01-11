@@ -4,6 +4,7 @@ from __future__ import annotations  # Включаем отложенные ан
 
 import json  # Работаем с JSON-телами запросов и ответов
 import logging  # Логируем ошибки и служебные события
+import os  # Читаем переменные окружения для настройки сервера
 import sys  # Настраиваем sys.path для запуска из разных директорий
 import time  # Используем unix-время для TTL токенов
 import uuid  # Генерируем уникальные токены ссылок
@@ -425,8 +426,15 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
 
 def run_server() -> None:  # Точка запуска сервера
-    server = HTTPServer(("0.0.0.0", 8080), WebAppEventHandler)  # Создаём HTTP-сервер на 8080 порту
-    logger.info("WebApp API: сервер запущен на http://0.0.0.0:8080")  # Сообщаем адрес сервера
+    host = os.getenv("HOST", "127.0.0.1")  # По умолчанию слушаем localhost для работы за IIS proxy
+    port_raw = os.getenv("PORT", "8080")  # Читаем порт из переменной окружения или используем 8080
+    try:  # Пытаемся привести порт к числу
+        port = int(port_raw)  # Преобразуем порт к int
+    except ValueError:  # Если значение не число
+        logger.warning("WebApp API: некорректный PORT=%s, используем 8080", port_raw)  # Логируем проблему
+        port = 8080  # Переходим на порт по умолчанию
+    server = HTTPServer((host, port), WebAppEventHandler)  # Создаём HTTP-сервер на указанном хосте и порту
+    logger.info("WebApp API: сервер запущен на http://%s:%s", host, port)  # Сообщаем адрес сервера
     try:  # Запускаем цикл обработки запросов
         server.serve_forever()  # Работаем бесконечно
     except KeyboardInterrupt:  # Корректно завершаем по Ctrl+C
