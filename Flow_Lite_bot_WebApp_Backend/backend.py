@@ -25,12 +25,27 @@ from db import save_webapp_event  # Импортируем запись собы
 from link_builder import default_link_builder  # Подключаем единый конструктор ссылок
 
 
+LOG_LEVEL_RAW = os.getenv("LOG_LEVEL", "INFO")  # Читаем желаемый уровень логов из переменной окружения
+LOG_LEVEL_NAME = LOG_LEVEL_RAW.upper()  # Нормализуем уровень к верхнему регистру
+LOG_LEVELS: Dict[str, int] = {  # Готовим карту доступных уровней логирования
+    "CRITICAL": logging.CRITICAL,  # Критические ошибки
+    "ERROR": logging.ERROR,  # Ошибки
+    "WARNING": logging.WARNING,  # Предупреждения
+    "INFO": logging.INFO,  # Информационные события
+    "DEBUG": logging.DEBUG,  # Подробные отладочные логи
+}  # Закрываем описание карты уровней
+LOG_LEVEL = LOG_LEVELS.get(LOG_LEVEL_NAME, logging.INFO)  # Выбираем уровень, по умолчанию INFO
+
 logging.basicConfig(  # Настраиваем базовый логгер с подробным форматом
-    level=logging.INFO,  # Ставим уровень DEBUG, чтобы видеть каждый шаг
+    level=LOG_LEVEL,  # Устанавливаем уровень, чтобы легко переключать INFO/DEBUG
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",  # Подробный формат сообщений
     datefmt="%Y-%m-%d %H:%M:%S",  # Формат даты для удобства чтения
 )  # Закрываем конфигурацию базового логгера
 logger = logging.getLogger(__name__)  # Получаем логгер этого модуля
+if LOG_LEVEL_NAME not in LOG_LEVELS:  # Проверяем, что передали корректный уровень
+    logger.warning(  # Сообщаем в лог о некорректной настройке
+        "WebApp API: неизвестный LOG_LEVEL=%s, используем INFO", LOG_LEVEL_RAW
+    )  # Завершаем предупреждение
 
 DEBUG_LOG_MAX_BODY_BYTES = 256 * 1024  # Ограничиваем размер тела для debug-логов (256 КБ)
 DEBUG_LOG_MAX_STRING_LENGTH = 2000  # Ограничиваем длину строк внутри debug-логов
@@ -311,6 +326,12 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
 
 
 class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обработчик HTTP-запросов
+    def _log_request_context(self, stage: str) -> None:  # Логируем входные данные запроса с указанием этапа
+        headers_snapshot = dict(self.headers.items())  # Превращаем заголовки в обычный словарь
+        logger.debug(  # Пишем подробный лог запроса
+            "HTTP %s: метод=%s путь=%s заголовки=%s", stage, self.command, self.path, headers_snapshot
+        )  # Сообщаем, на каком этапе и с какими данными пришёл запрос
+
     def _apply_cors_headers(self) -> None:  # Добавляем CORS-заголовки во все ответы
         origin = self.headers.get("Origin") or "*"  # Определяем Origin клиента или ставим * по умолчанию
         self.send_header("Access-Control-Allow-Origin", origin)  # Разрешаем доступ с указанного Origin (или со всех)
@@ -381,16 +402,19 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
         logger.info("Debug log: запись сохранена в %s", log_path)  # Сообщаем о сохранении логов
 
     def do_OPTIONS(self) -> None:  # Отвечаем на preflight-запросы браузера
+        self._log_request_context("OPTIONS: вход")  # Логируем входные данные preflight-запроса
         self.send_response(204)  # Отдаём статус 204 No Content
         self.send_header("Content-Length", "0")  # Сообщаем, что тела нет
         self.end_headers()  # Закрываем заголовки с включёнными CORS
 
     def do_POST(self) -> None:  # Обрабатываем POST-запросы
+        self._log_request_context("POST: вход")  # Логируем входные данные POST-запроса
         if self.path == "/api/debug/log":  # Проверяем debug-эндпоинт для логов фронтенда
             return self._handle_debug_log()  # Передаём управление в обработчик debug-лога
         if self.path != "/api/webapp":  # Проверяем путь
             self.send_response(404)  # Если путь неизвестен — отдаём 404
             self.end_headers()  # Закрываем заголовки
+            logger.info("WebApp API: POST %s завершён с 404", self.path)  # Фиксируем ответ 404 в логах
             return  # Завершаем обработку
 
         content_length = int(self.headers.get("content-length", 0))  # Узнаём длину тела запроса
@@ -414,9 +438,11 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
         self.send_response(202)  # Возвращаем 202 Accepted
         self.end_headers()  # Закрываем заголовки
+        logger.debug("WebApp API: отправили ответ 202 для %s", self.path)  # Подтверждаем отправку ответа
         logger.info("WebApp API: POST %s завершён с 202 Accepted", self.path)  # Фиксируем успешный приём события
 
     def do_GET(self) -> None:  # Обрабатываем GET-запросы
+        self._log_request_context("GET: вход")  # Логируем входные данные GET-запроса
         parsed = urlparse(self.path)  # Разбираем URL
         logger.debug("WebApp API: GET %s разобран в %s", self.path, parsed)  # Логируем структуру URL
         if parsed.path == "/api/links":  # Эндпоинт для получения списка ссылок
@@ -429,6 +455,7 @@ class WebAppEventHandler(BaseHTTPRequestHandler):  # Основной обраб
 
         self.send_response(404)  # Неизвестный путь — 404
         self.end_headers()  # Закрываем заголовки
+        logger.info("WebApp API: GET %s завершён с 404", self.path)  # Фиксируем неизвестный путь в логах
 
     def _handle_links_list(self, parsed) -> None:  # Обрабатываем GET /api/links
         query = parse_qs(parsed.query)  # Разбираем query-параметры
