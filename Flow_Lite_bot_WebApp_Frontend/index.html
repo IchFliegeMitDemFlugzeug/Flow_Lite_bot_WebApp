@@ -27,6 +27,30 @@
     document.write(`<script defer src="${buildVersionedUrl("./js/banks.js")}"><\/script>`); // Подключаем список банков с версией.
     document.write(`<script defer src="${buildVersionedUrl("./js/app.js")}"><\/script>`); // Подключаем основной скрипт приложения с версией.
   </script>
+  <!-- Скрипт, который добавляет версию ко всем локальным картинкам после загрузки DOM -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => { // Ждём, пока DOM будет полностью готов.
+      const assetVersion = window.APP_ASSETS_VERSION || ""; // Берём единую версию ассетов из asset-version.js.
+      if (!assetVersion) { // Если версия не задана, ничего не меняем.
+        return; // Выходим, чтобы не трогать src.
+      } // Завершаем проверку наличия версии.
+      const images = document.querySelectorAll("img[src]"); // Собираем все теги <img> с атрибутом src.
+      images.forEach((image) => { // Проходим по каждому найденному изображению.
+        const rawSource = image.getAttribute("src") || ""; // Получаем исходный src без преобразований.
+        const source = rawSource.trim(); // Убираем лишние пробелы по краям.
+        if (!source) { // Если src пустой, пропускаем элемент.
+          return; // Переходим к следующей картинке.
+        } // Закрываем проверку на пустой src.
+        const isExternal = /^(?:https?:)?\/\//i.test(source) || /^data:/i.test(source) || /^blob:/i.test(source); // Проверяем, что ссылка внешняя или data/blob.
+        if (isExternal) { // Внешние ссылки не трогаем.
+          return; // Переходим к следующей картинке.
+        } // Закрываем условие для внешних ссылок.
+        const separator = source.includes("?") ? "&" : "?"; // Выбираем правильный разделитель для параметров.
+        const versionedSource = `${source}${separator}v=${encodeURIComponent(assetVersion)}`; // Собираем новый src с параметром версии.
+        image.setAttribute("src", versionedSource); // Обновляем src у картинки.
+      }); // Завершаем проход по всем изображениям.
+    }); // Закрываем обработчик DOMContentLoaded.
+  </script>
 </head>
 <body>
   <!-- Общий контейнер страницы, чтобы центрировать контент -->
