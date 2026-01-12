@@ -11,37 +11,21 @@
   <meta name="backend-base-url" content="">
   <!-- Единая версия ассетов вынесена в отдельный файл, чтобы менять её в одном месте -->
   <script src="./js/asset-version.js"></script>
-  <!-- Подключаем вынесенный CSS (версию добавим ниже через скрипт) -->
-  <link rel="stylesheet" data-versioned-href="./css/app.css">
-  <!-- Логгер подключаем первым, чтобы он успел обернуть fetch (версию добавим ниже через скрипт) -->
-  <script defer data-versioned-src="./js/logger.js"></script>
-  <!-- Скрипт Telegram для Mini App -->
-  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Клиентские модули, подключаем по порядку -->
-  <script defer data-versioned-src="./js/constants/config.js"></script>
-  <script defer data-versioned-src="./js/telegram.js"></script>
-  <script defer data-versioned-src="./js/api.js"></script>
-  <script defer data-versioned-src="./js/banks.js"></script>
-  <script defer data-versioned-src="./js/app.js"></script>
-  <!-- Скрипт ниже добавляет ?v=... ко всем локальным ассетам на странице -->
+  <!-- Скрипт ниже сразу выводит теги <link>/<script> с единой версией, чтобы браузер мгновенно увидел файлы -->
   <script>
-    const assetVersion = window.APP_ASSETS_VERSION || ""; // Берём единую версию ассетов из файла asset-version.js (если пусто — версионирование не применяется).
-    const versionedElements = document.querySelectorAll("[data-versioned-href], [data-versioned-src]"); // Находим все элементы, где нужно автоматически проставить версию.
-    versionedElements.forEach((element) => { // Проходим по каждому найденному элементу по очереди.
-      const rawHref = element.getAttribute("data-versioned-href"); // Считываем исходный адрес для CSS (если это <link>).
-      const rawSrc = element.getAttribute("data-versioned-src"); // Считываем исходный адрес для JS (если это <script>).
-      const baseUrl = rawHref || rawSrc || ""; // Выбираем базовый URL, который нужно версионировать.
-      if (!baseUrl) { // Если адрес пустой, то обновлять нечего.
-        return; // Выходим из обработки текущего элемента.
-      } // Закрываем проверку на пустой адрес.
-      const versionedUrl = assetVersion ? `${baseUrl}?v=${assetVersion}` : baseUrl; // Собираем итоговый URL с параметром версии (если версия задана).
-      if (rawHref) { // Если у элемента был data-versioned-href, значит это CSS.
-        element.setAttribute("href", versionedUrl); // Проставляем href с параметром версии.
-      } // Закрываем обработку CSS-ссылки.
-      if (rawSrc) { // Если у элемента был data-versioned-src, значит это JS.
-        element.setAttribute("src", versionedUrl); // Проставляем src с параметром версии.
-      } // Закрываем обработку JS-скрипта.
-    }); // Завершаем обработку всех элементов.
+    const assetVersion = window.APP_ASSETS_VERSION || ""; // Берём единую версию ассетов из asset-version.js (если пусто — версионирование не применяется).
+    const buildVersionedUrl = (url) => { // Готовим функцию, которая добавляет параметр версии к пути.
+      const safeUrl = url || ""; // Защищаемся от случайного пустого значения.
+      return assetVersion ? `${safeUrl}?v=${assetVersion}` : safeUrl; // Возвращаем ссылку с ?v=... или без него.
+    }; // Завершаем объявление функции для сборки ссылок.
+    document.write(`<link rel="stylesheet" href="${buildVersionedUrl("./css/app.css")}">`); // Подключаем главный CSS сразу с версией.
+    document.write(`<script defer src="${buildVersionedUrl("./js/logger.js")}"><\/script>`); // Подключаем логгер первым, чтобы он успел обернуть fetch.
+    document.write(`<script defer src="https://telegram.org/js/telegram-web-app.js"><\/script>`); // Подключаем внешний Telegram SDK без изменений.
+    document.write(`<script defer src="${buildVersionedUrl("./js/constants/config.js")}"><\/script>`); // Подключаем конфигурацию с версией.
+    document.write(`<script defer src="${buildVersionedUrl("./js/telegram.js")}"><\/script>`); // Подключаем Telegram-обвязку с версией.
+    document.write(`<script defer src="${buildVersionedUrl("./js/api.js")}"><\/script>`); // Подключаем API-клиент с версией.
+    document.write(`<script defer src="${buildVersionedUrl("./js/banks.js")}"><\/script>`); // Подключаем список банков с версией.
+    document.write(`<script defer src="${buildVersionedUrl("./js/app.js")}"><\/script>`); // Подключаем основной скрипт приложения с версией.
   </script>
 </head>
 <body>
