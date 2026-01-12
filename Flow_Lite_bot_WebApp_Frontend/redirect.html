@@ -10,6 +10,8 @@
   <!-- Legacy-страница: основной редирект находится в /redirect/ -->
   <!-- Базовый адрес API для Mini App (same-origin, необязательный) -->
   <meta name="backend-base-url" content="">
+  <!-- Единая версия ассетов вынесена в отдельный файл, чтобы менять её в одном месте -->
+  <script src="./js/asset-version.js"></script>
   <!-- Небольшие стили, чтобы страница выглядела опрятно -->
   <style>
     /* Обёртка на всю высоту экрана */
@@ -58,10 +60,30 @@
   </div>
 
   <!-- Подключаем конфигурацию и отправку событий -->
-  <script src="./js/constants/config.js"></script>
-  <script src="./scripts/modules/constants.js"></script>
-  <script src="./scripts/modules/events.js"></script>
+  <script data-versioned-src="./js/constants/config.js"></script>
+  <script data-versioned-src="./scripts/modules/constants.js"></script>
+  <script data-versioned-src="./scripts/modules/events.js"></script>
   <!-- Логика редиректа с deep link и fallback -->
-  <script src="./scripts/redirect.js"></script>
+  <script data-versioned-src="./scripts/redirect.js"></script>
+  <!-- Скрипт ниже добавляет ?v=... ко всем локальным ассетам на странице -->
+  <script>
+    const assetVersion = window.APP_ASSETS_VERSION || ""; // Берём единую версию ассетов из файла asset-version.js (если пусто — версионирование не применяется).
+    const versionedElements = document.querySelectorAll("[data-versioned-href], [data-versioned-src]"); // Находим все элементы, где нужно автоматически проставить версию.
+    versionedElements.forEach((element) => { // Проходим по каждому найденному элементу по очереди.
+      const rawHref = element.getAttribute("data-versioned-href"); // Считываем исходный адрес для CSS (если это <link>).
+      const rawSrc = element.getAttribute("data-versioned-src"); // Считываем исходный адрес для JS (если это <script>).
+      const baseUrl = rawHref || rawSrc || ""; // Выбираем базовый URL, который нужно версионировать.
+      if (!baseUrl) { // Если адрес пустой, то обновлять нечего.
+        return; // Выходим из обработки текущего элемента.
+      } // Закрываем проверку на пустой адрес.
+      const versionedUrl = assetVersion ? `${baseUrl}?v=${assetVersion}` : baseUrl; // Собираем итоговый URL с параметром версии (если версия задана).
+      if (rawHref) { // Если у элемента был data-versioned-href, значит это CSS.
+        element.setAttribute("href", versionedUrl); // Проставляем href с параметром версии.
+      } // Закрываем обработку CSS-ссылки.
+      if (rawSrc) { // Если у элемента был data-versioned-src, значит это JS.
+        element.setAttribute("src", versionedUrl); // Проставляем src с параметром версии.
+      } // Закрываем обработку JS-скрипта.
+    }); // Завершаем обработку всех элементов.
+  </script>
 </body>
 </html>
