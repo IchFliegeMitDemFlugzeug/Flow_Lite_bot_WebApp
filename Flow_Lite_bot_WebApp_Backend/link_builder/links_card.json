@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "schema_version": 1,
+    "identifier_type": "card",
+    "placeholders": {
+      "card.raw": "Входная карта как пришла (до нормализации).",
+      "card.digits": "Только цифры карты (16–19).",
+      "card.last4": "Последние 4 цифры.",
+      "card.g1..card.gN": "Группы по 4 цифры (g1='1234'). Количество зависит от длины.",
+      "amount": "Сумма как строка (если передана).",
+      "amount_url": "URL-encoded сумма.",
+      "comment": "Комментарий как строка (если передан).",
+      "comment_url": "URL-encoded комментарий."
+    },
+    "notes": "Если шаблон равен null — link_builder вернёт null и не будет падать."
+  },
+  "banks": {
+    "sber": {
+      "deeplink_ios": "https://www.sberbank.com/sms/pbpn?requisiteNumber={card.digits}",
+      "deeplink_android": "https://www.sberbank.com/sms/pbpn?requisiteNumber={card.digits}",
+      "web": "https://www.sberbank.com/sms/pbpn?requisiteNumber={card.digits}"
+    },
+    "vtb": {
+      "deeplink_ios": "https://online.vtb.ru/i/cell/ppl/{card.digits}",
+      "deeplink_android": "https://online.vtb.ru/i/cell/ppl/{card.digits}",
+      "web": "https://online.vtb.ru/transfers/transferByCard"
+    },
+    "alfabank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "psb": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "tbank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "mkb": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "gazprombank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "rshb": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "pochtabank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "sovcombank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    },
+    "mtsbank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "schema_version": 1,
+    "identifier_type": "phone",
+    "placeholders": {
+      "phone.raw": "Входной телефон как пришёл (до нормализации).",
+      "phone.e164": "Телефон в формате E.164: +7XXXXXXXXXX.",
+      "phone.e164_url": "URL-encoded phone.e164 (плюс станет %2B).",
+      "phone.digits11": "11 цифр, начинается с 7 (без +).",
+      "phone.digits10": "10 последних цифр (без первой 7).",
+      "phone.d1..phone.d11": "Каждая цифра phone.digits11 по отдельности (d1 — первая цифра).",
+      "phone.json_phone": "JSON-строка вида {\"phone\":\"+7...\"}.",
+      "phone.json_phone_url": "URL-encoded phone.json_phone.",
+      "amount": "Сумма как строка (если передана).",
+      "amount_url": "URL-encoded сумма (если нужна как параметр).",
+      "comment": "Комментарий как строка (если передан).",
+      "comment_url": "URL-encoded комментарий."
+    },
+    "notes": "Если шаблон равен null — link_builder вернёт null и не будет падать."
+  },
+  "banks": {
+    "sber": {
+      "deeplink_ios": "https://www.sberbank.com/sms/pbpn?requisiteNumber={phone.digits11}",
+      "deeplink_android": "https://www.sberbank.com/sms/pbpn?requisiteNumber={phone.digits11}",
+      "web": "https://www.sberbank.com/sms/pbpn?requisiteNumber={phone.digits11}"
+    },
+    "alfabank": {
+      "deeplink_ios": null,
+      "deeplink_android": "alfabank://phone_bank_transfers?recipientPhoneNumber={phone.digits11}",
+      "web": "https://web.alfabank.ru/transfers/phone?openSelectRecipientPicker=true&recipientPhoneNumber={phone.digits11}"
+    },
+    "psb": {
+      "deeplink_ios": null,
+      "deeplink_android": "psbmobile://auth/toPersonByPhone?phoneNumber={phone.e164_url}",
+      "web": "https://ib.psbank.ru/lk/transfer-by-phone/bank-select?fullList=false&phoneNumber={phone.digits11}"
+    },
+    "vtb": {
+      "deeplink_ios": "https://online.vtb.ru/i/cell/ppl/{phone.digits10}",
+      "deeplink_android": "https://online.vtb.ru/i/cell/ppl/{phone.digits10}",
+      "web": null
+    },
+    "tbank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://www.tbank.ru/mybank/payments/persons/phone/?internal_source=search_public_api_search_suggest&predefined={phone.json_phone_url}"
+    },
+    "mkb": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://online.mkb.ru/payments/phone-number"
+    },
+    "gazprombank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://ib.online.gpb.ru/payments-and-transfers/scenario/transfer-phone"
+    },
+    "rshb": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://online.rshb.ru/b1/ib6/wf2/retail/payment/documents/ipstransferpanel/"
+    },
+    "pochtabank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://my.pochtabank.ru/operations?serviceId=38221&menuId=ips_transfer"
+    },
+    "sovcombank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": "https://halvacard.ru/lk2/payments/transfer/phone"
+    },
+    "mtsbank": {
+      "deeplink_ios": null,
+      "deeplink_android": null,
+      "web": null
+    }
+  }
+}
