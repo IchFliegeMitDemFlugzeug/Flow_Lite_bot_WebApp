@@ -121,14 +121,6 @@
   function handleBankClick(bank, button, statusElement, telegramContext, transferId, linkCache, requestLinksOnce) { // Обрабатываем клик по банку
     window.ApiClient.sendBankClick(telegramContext, bank.bank_id || bank.id, { link_id: bank.link_id, link_token: bank.link_token }); // Отправляем событие выбора банка
 
-    if (bank.close_only) { // Если кнопка-заглушка
-      showStatus(statusElement, 'Закрываем…'); // Сообщаем пользователю о действии
-      setTimeout(function () { // Делаем короткую паузу перед закрытием
-        window.TelegramBridge.closeMiniApp(); // Закрываем Mini App без перехода
-      }, 200); // Даём телеметрии стартовать
-      return; // Завершаем обработчик клика
-    } // Завершаем проверку заглушки
-
     showStatus(statusElement, 'Получаем ссылку…'); // Показываем лёгкий индикатор загрузки
     button.disabled = true; // Блокируем повторные клики, чтобы не дублировать запросы
 

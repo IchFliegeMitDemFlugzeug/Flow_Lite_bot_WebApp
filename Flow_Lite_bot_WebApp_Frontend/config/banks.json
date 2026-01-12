@@ -28,7 +28,6 @@
     "title": "Альфа-Банк",
     "logo": "assets/img/banks/alfabank.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -36,7 +35,6 @@
     "title": "Россельхозбанк",
     "logo": "assets/img/banks/rshb.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -44,7 +42,6 @@
     "title": "Газпромбанк",
     "logo": "assets/img/banks/gazprombank.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -52,7 +49,6 @@
     "title": "ПСБ",
     "logo": "assets/img/banks/psb.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -60,7 +56,6 @@
     "title": "МКБ",
     "logo": "assets/img/banks/mkb.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -68,7 +63,6 @@
     "title": "МТС Банк",
     "logo": "assets/img/banks/mtsbank.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -76,7 +70,6 @@
     "title": "Почта Банк",
     "logo": "assets/img/banks/pochtabank.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   },
   {
@@ -84,7 +77,6 @@
     "title": "Совкомбанк",
     "logo": "assets/img/banks/sovcombank.png",
     "supported_identifiers": ["phone", "card"],
-    "close_only": true,
     "notes": "Заглушка: просто закрываем мини-апп"
   }
 ]

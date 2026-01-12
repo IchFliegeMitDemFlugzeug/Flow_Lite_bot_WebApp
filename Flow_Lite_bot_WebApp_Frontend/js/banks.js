@@ -29,7 +29,6 @@
       title: 'Альфа-Банк', // Название
       logo: 'assets/img/banks/alfabank.png', // Логотип PNG
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Кнопка просто закрывает приложение
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка РСХБ
@@ -37,7 +36,6 @@
       title: 'Россельхозбанк', // Название
       logo: 'assets/img/banks/rshb.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Кнопка закрывает приложение
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка Газпромбанк
@@ -45,7 +43,6 @@
       title: 'Газпромбанк', // Название
       logo: 'assets/img/banks/gazprombank.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие приложения
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка ПСБ
@@ -53,7 +50,6 @@
       title: 'ПСБ', // Название
       logo: 'assets/img/banks/psb.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка МКБ
@@ -61,7 +57,6 @@
       title: 'МКБ', // Название
       logo: 'assets/img/banks/mkb.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка МТС
@@ -69,7 +64,6 @@
       title: 'МТС Банк', // Название
       logo: 'assets/img/banks/mtsbank.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка Почта Банк
@@ -77,7 +71,6 @@
       title: 'Почта Банк', // Название
       logo: 'assets/img/banks/pochtabank.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     },
     { // Заглушка Совкомбанк
@@ -85,7 +78,6 @@
       title: 'Совкомбанк', // Название
       logo: 'assets/img/banks/sovcombank.png', // Логотип
       supported_identifiers: ['phone', 'card'], // Доступные реквизиты
-      close_only: true, // Только закрытие
       notes: 'Заглушка: просто закрываем мини-апп' // Комментарий
     }
   ]; // Завершаем встроенный массив
