@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <!-- Кодировка страницы -->
+  <meta charset="UTF-8">
+  <!-- Мобильная адаптация под ширину устройства -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Заголовок окна браузера -->
+  <title>Выберите банк для оплаты</title>
+  <!-- Базовый адрес API для Mini App (по HTTPS) -->
+  <meta name="backend-base-url" content="">
+  <!-- Единая версия ассетов, чтобы iOS сразу брала закешированные файлы -->
+  <script>
+    window.APP_ASSETS_VERSION = '2025-12-22-1';
+  </script>
+  <!-- Подключаем вынесенный CSS с версионированием -->
+  <link rel="stylesheet" href="./css/app.css?v=2025-12-22-1">
+  <!-- Логгер подключаем первым, чтобы он успел обернуть fetch -->
+  <script defer src="./js/logger.js?v=2025-12-22-1"></script>
+  <!-- Скрипт Telegram для Mini App -->
+  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Клиентские модули, подключаем по порядку -->
+  <script defer src="./js/constants/config.js?v=2025-12-22-1"></script>
+  <script defer src="./js/telegram.js?v=2025-12-22-1"></script>
+  <script defer src="./js/api.js?v=2025-12-22-1"></script>
+  <script defer src="./js/banks.js?v=2025-12-22-1"></script>
+  <script defer src="./js/app.js?v=2025-12-22-1"></script>
+</head>
+<body>
+  <!-- Общий контейнер страницы, чтобы центрировать контент -->
+  <div class="page">
+    <!-- Шапка: кнопка возврата и логотип -->
+    <header class="header">
+      <button class="back-btn" type="button">← Вернуться</button>
+      <img class="main-logo" src="./assets/img/logo.png" alt="Логотип сервиса">
+    </header>
+
+    <!-- Основная зона с прокручиваемым списком банков -->
+    <main class="content">
+      <div class="bank-list" aria-live="polite"></div>
+    </main>
+  </div>
+</body>
+</html>

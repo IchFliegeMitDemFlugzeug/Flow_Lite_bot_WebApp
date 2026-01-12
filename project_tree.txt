@@ -81,7 +81,13 @@ Flow_Lite_bot_WebApp
 │   ├── styles
 │   │   └── main.css
 │   ├── index.html
-│   └── redirect.html
+│   ├── redirect.html
+│   └── web.config
+├── Sertificate
+│   ├── potok-crm.ru.p12
+│   ├── potok-crm.ru_cert.pem
+│   ├── potok-crm.ru_private_key.pem
+│   └── www.potok-crm.ru.p12
 ├── .gitattributes
 ├── .gitignore
 ├── export_tree.py
