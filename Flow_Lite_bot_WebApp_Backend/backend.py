@@ -22,8 +22,7 @@ if str(backend_root) not in sys.path:  # Убеждаемся, что катал
     sys.path.insert(0, str(backend_root))  # Добавляем путь, чтобы локальные модули находились
 
 from db import save_webapp_event  # Импортируем запись событий в БД из локального модуля
-from link_builders import get_builder  # Подключаем реестр конструкторов deeplink-ссылок
-from schemas.link_payload import LinkBuilderRequest  # Тип запроса к конструктору ссылок
+from link_builder import default_link_builder  # Подключаем единый конструктор ссылок
 
 
 logging.basicConfig(  # Настраиваем базовый логгер с подробным форматом
@@ -119,6 +118,7 @@ class LinkTokenStore:  # Простое хранилище токенов deepli
 
 
 token_store = LinkTokenStore()  # Глобальное хранилище токенов для страницы редиректа
+link_builder = default_link_builder()  # Глобальный экземпляр конструктора ссылок (JSON читается один раз)
 
 def base64_decode(value: str) -> str:  # Вспомогательная функция для base64url
     import base64  # Импортируем локально, чтобы не засорять глобальные импорты
@@ -258,28 +258,10 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
 
     for bank in banks:  # Перебираем все банки из конфигурации
         bank_id = bank.get("id") or "unknown"  # Забираем id банка
-        close_only = bool(bank.get("close_only"))  # Узнаём, нужно ли только закрывать Mini App без ссылок
         supported = bank.get("supported_identifiers") or []  # Узнаём поддерживаемые типы реквизитов
         logger.debug(
-            "Build links: обрабатываем банк id=%s close_only=%s supported=%s", bank_id, close_only, supported
+            "Build links: обрабатываем банк id=%s supported=%s", bank_id, supported
         )  # Подробно логируем параметры банка
-
-        if close_only:  # Если банк пока работает как заглушка
-            results.append(  # Сразу добавляем его в итоговый список
-                {
-                    "bank_id": bank_id,  # Возвращаем id банка
-                    "title": bank.get("title", "Банк"),  # Название для кнопки
-                    "logo": bank.get("logo", ""),  # Путь к логотипу
-                    "notes": bank.get("notes", ""),  # Дополнительное описание
-                    "close_only": True,  # Флаг для фронта, что нужно просто закрыть Mini App
-                    "link_id": bank.get("id", bank_id),  # Устанавливаем link_id для логирования
-                    "link_token": "",  # Токен пустой, так как редирект не нужен
-                    "deeplink": "",  # Deeplink отсутствует
-                    "fallback_url": "",  # Fallback тоже отсутствует
-                }
-            )
-            logger.debug("Build links: банк %s работает в режиме close_only", bank_id)  # Сообщаем о режиме заглушки
-            continue  # Переходим к следующему банку
 
         if identifier_type not in supported:  # Если данный банк не умеет обрабатывать тип реквизита
             logger.debug(
@@ -287,55 +269,26 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
             )  # Сообщаем о пропуске банка
             continue  # Пропускаем банк
 
-        builder = get_builder(bank.get("builder", ""))  # Ищем конструктор по имени
-        if not builder:  # Если конструктор не найден
-            logger.debug("Build links: конструктор для банка %s не найден", bank_id)  # Логируем отсутствие конструктора
-            errors.append(f"builder not found for {bank_id}")  # Записываем ошибку
-            continue  # Переходим к следующему банку
-
-        request_payload: LinkBuilderRequest = {  # Готовим payload для конструктора
-            "identifier_type": identifier_type,
-            "identifier_value": identifier_value,
-            "amount": str(option.get("amount") or ""),  # Передаём сумму из корректного option
-            "comment": str(option.get("comment") or ""),  # Передаём комментарий из корректного option
-            "extra": payload,
-        }
-        logger.debug(
-            "Build links: подготовили payload %s для банка %s", request_payload, bank_id
-        )  # Показываем запрос в конструктор
-
-        try:  # Пытаемся собрать ссылку
-            built = builder(request_payload)  # Вызываем конструктор
-            logger.debug("Build links: конструктор %s вернул %s", builder.__name__, built)  # Логируем результат конструктора
-        except Exception as exc:  # Ловим любые ошибки конструктора
-            logger.warning("WebApp API: ошибка сборки ссылки для %s: %s", bank_id, exc)  # Логируем проблему
-            errors.append(f"builder failed for {bank_id}")  # Добавляем ошибку
-            fallback_payload = {  # Готовим безопасный fallback с пустым deeplink
-                "bank_id": bank_id,
-                "title": bank.get("title", "Банк"),
-                "logo": bank.get("logo", ""),
-                "notes": bank.get("notes", ""),
-                "deeplink": "",
-                "fallback_url": "https://www.google.com",
-                "link_id": f"fallback:{bank_id}",
-                "link_token": token_store.issue_token(
-                    {
-                        "bank_id": bank_id,
-                        "deeplink": "",
-                        "fallback_url": "https://www.google.com",
-                        "transfer_id": transfer_id,
-                    }
-                ),
-            }
-            results.append(fallback_payload)  # Добавляем fallback в список
-            logger.debug("Build links: добавлен fallback %s для банка %s", fallback_payload, bank_id)  # Логируем fallback
-            continue  # Переходим к следующему банку
+        try:  # Пытаемся собрать ссылки через единый конструктор
+            built_links = link_builder.build_links(  # Собираем набор ссылок для банка
+                bank_id,  # Идентификатор банка
+                identifier_type,  # Тип реквизита (phone/card)
+                identifier_value,  # Значение реквизита
+                str(option.get("amount") or ""),  # Передаём сумму из корректного option
+                str(option.get("comment") or ""),  # Передаём комментарий из корректного option
+            )
+            logger.debug("Build links: link_builder вернул %s для банка %s", built_links, bank_id)  # Логируем результат
+        except Exception as exc:  # Ловим любые неожиданные ошибки конструктора
+            logger.warning("WebApp API: ошибка сборки ссылок для %s: %s", bank_id, exc)  # Логируем проблему
+            errors.append(f"link_builder failed for {bank_id}")  # Добавляем ошибку
+            built_links = {}  # Используем пустой набор ссылок, чтобы не ломать ответ
 
         token_payload = {  # Собираем payload для токена редиректа
             "bank_id": bank_id,
-            "deeplink": built.get("deeplink") or "",
-            "fallback_url": built.get("fallback_url") or "",
             "transfer_id": transfer_id,
+            "links": built_links,
+            "deeplink": built_links.get("deeplink_android") or built_links.get("deeplink_ios") or "",
+            "fallback_url": built_links.get("web") or "",
         }
         logger.debug(
             "Build links: формируем токен с payload %s для банка %s", token_payload, bank_id
@@ -348,10 +301,8 @@ def build_links_for_transfer(transfer_id: str) -> Tuple[List[dict], List[str]]: 
             "title": bank.get("title", "Банк"),
             "logo": bank.get("logo", ""),
             "notes": bank.get("notes", ""),
-            "link_id": built.get("link_id", bank_id),
+            "link_id": bank.get("id", bank_id),
             "link_token": token,
-            "deeplink": built.get("deeplink", ""),
-            "fallback_url": built.get("fallback_url", ""),
         }
         results.append(result_item)  # Добавляем объект в список результатов
         logger.debug("Build links: итоговая запись для банка %s: %s", bank_id, result_item)  # Фиксируем результат

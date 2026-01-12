@@ -12,17 +12,19 @@
     telegramContext.startParam = telegramContext.startParam || transferId; // Прокидываем transfer_id из параметров, если он есть
     const userAgent = navigator.userAgent || ''; // Считываем user agent для определения платформы
     const isIOS = /iphone|ipad|ipod/i.test(userAgent); // Проверяем, что устройство — iOS
+    const isAndroid = /android/i.test(userAgent); // Проверяем, что устройство — Android
     const isSafari = isIOS && /safari/i.test(userAgent) && !/crios|fxios|edgios|opt\//i.test(userAgent); // Убеждаемся, что браузер — Safari, а не обёртка Chromium/Firefox
 
     window.ApiClient.sendRedirectEvent(telegramContext, bankId, 'redirect_open', 'redirect', { link_token: linkToken }); // Логируем открытие страницы редиректа
 
     resolveLink(linkToken, deeplinkParam, fallbackParam) // Определяем deeplink/fallback
       .then(function (bankLink) { // Когда получили итоговую ссылку
+        const resolvedLinks = resolvePlatformLinks(bankLink); // Выбираем deeplink и fallback для платформы
         const targetBank = { // Собираем объект для UI
           id: bankId || bankLink.bank_id || 'unknown', // Идентификатор банка
           title: 'Ваш банк', // Нейтральное название
-          deeplink: bankLink.deeplink || '', // Итоговый deeplink
-          fallback_url: bankLink.fallback_url || '' // Итоговый fallback
+          deeplink: resolvedLinks.deeplink, // Итоговый deeplink
+          fallback_url: resolvedLinks.fallback_url // Итоговый fallback
         }; // Заканчиваем объект банка
         updateUi(targetBank); // Обновляем текст на странице
         tryOpenBank(targetBank, linkToken); // Пробуем открыть приложение банка
@@ -98,6 +100,22 @@
         return window.ApiClient.fetchLinkByToken(token); // Запрашиваем ссылки у backend
       }
       return Promise.resolve({ deeplink: deeplink || '', fallback_url: fallback || '' }); // Используем параметры из URL
+    }
+
+    function resolvePlatformLinks(bankLink) { // Подбираем deeplink/fallback с учётом платформы
+      const safeLink = bankLink || {}; // Защищаемся от пустого объекта
+      const links = safeLink.links && typeof safeLink.links === 'object' ? safeLink.links : null; // Проверяем наличие нового формата
+      if (links) { // Если backend вернул новый формат ссылок
+        const iosLink = links.deeplink_ios || ''; // Deeplink для iOS
+        const androidLink = links.deeplink_android || ''; // Deeplink для Android
+        const webLink = links.web || safeLink.fallback_url || ''; // Fallback берём из web или из старого поля
+        const deeplink = isIOS ? iosLink : (isAndroid ? androidLink : ''); // Выбираем deeplink по платформе
+        return { deeplink: deeplink, fallback_url: webLink }; // Возвращаем выбранные ссылки
+      }
+      return { // Возвращаем старый формат, если links нет
+        deeplink: safeLink.deeplink || '', // Старый deeplink
+        fallback_url: safeLink.fallback_url || '' // Старый fallback
+      }; // Завершаем возврат старого формата
     }
 
     function scheduleCloseWindow() { // Аккуратно закрываем вкладку после редиректа
