@@ -25,7 +25,7 @@ from db import save_webapp_event  # Импортируем запись собы
 from link_builder import default_link_builder  # Подключаем единый конструктор ссылок
 
 
-LOG_LEVEL_RAW = os.getenv("LOG_LEVEL", "INFO")  # Читаем желаемый уровень логов из переменной окружения
+LOG_LEVEL_RAW = os.getenv("LOG_LEVEL", "DEBUG")  # Читаем желаемый уровень логов из переменной окружения
 LOG_LEVEL_NAME = LOG_LEVEL_RAW.upper()  # Нормализуем уровень к верхнему регистру
 LOG_LEVELS: Dict[str, int] = {  # Готовим карту доступных уровней логирования
     "CRITICAL": logging.CRITICAL,  # Критические ошибки
