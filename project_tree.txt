@@ -5,11 +5,37 @@ Flow_Lite_bot_WebApp
 ├── Flow_Lite_bot_WebApp_Backend
 │   ├── config
 │   │   └── banks.json
-│   ├── link_builders
+│   ├── link_builder
 │   │   ├── __init__.py
-│   │   ├── sber.py
-│   │   ├── tinkoff.py
-│   │   └── vtb.py
+│   │   ├── link_builder.py
+│   │   ├── links_card.json
+│   │   └── links_phone.json
+│   ├── logs
+│   │   ├── frontend_2026-01-12.jsonl
+│   │   ├── frontend_2026-01-13.jsonl
+│   │   ├── frontend_2026-01-14.jsonl
+│   │   ├── frontend_2026-01-15.jsonl
+│   │   ├── frontend_2026-01-16.jsonl
+│   │   ├── frontend_2026-01-19.jsonl
+│   │   ├── frontend_2026-01-20.jsonl
+│   │   ├── frontend_2026-01-22.jsonl
+│   │   ├── frontend_2026-01-23.jsonl
+│   │   ├── frontend_2026-01-24.jsonl
+│   │   ├── frontend_2026-01-25.jsonl
+│   │   ├── frontend_2026-01-28.jsonl
+│   │   ├── frontend_2026-01-29.jsonl
+│   │   ├── frontend_2026-01-31.jsonl
+│   │   ├── frontend_2026-02-01.jsonl
+│   │   ├── frontend_2026-02-02.jsonl
+│   │   ├── frontend_2026-02-03.jsonl
+│   │   ├── frontend_2026-02-06.jsonl
+│   │   ├── frontend_2026-02-09.jsonl
+│   │   ├── frontend_2026-02-10.jsonl
+│   │   ├── frontend_2026-02-16.jsonl
+│   │   ├── frontend_2026-02-18.jsonl
+│   │   ├── frontend_2026-02-19.jsonl
+│   │   ├── frontend_2026-02-20.jsonl
+│   │   └── frontend_2026-06-18.jsonl
 │   ├── schemas
 │   │   ├── __init__.py
 │   │   └── link_payload.py
@@ -17,12 +43,78 @@ Flow_Lite_bot_WebApp
 │   │   ├── conftest.py
 │   │   ├── test_api_links.py
 │   │   └── test_link_builders.py
+│   ├── users
+│   │   ├── 1622929490.json
+│   │   ├── 445952203.json
+│   │   └── 455627271.json
 │   ├── README.md
 │   ├── backend.py
 │   ├── db.py
 │   ├── requirements.txt
 │   └── serve_index.py
 ├── Flow_Lite_bot_WebApp_Frontend
+│   ├── app
+│   │   ├── assets
+│   │   │   ├── bg
+│   │   │   │   └── background.png
+│   │   │   ├── images
+│   │   │   │   ├── LOGO.png
+│   │   │   │   ├── LOGO_ALFABANK.png
+│   │   │   │   ├── LOGO_GAZPROMBANK.png
+│   │   │   │   ├── LOGO_MKB.png
+│   │   │   │   ├── LOGO_MTSBANK.png
+│   │   │   │   ├── LOGO_POCHTABANK.png
+│   │   │   │   ├── LOGO_PSB.png
+│   │   │   │   ├── LOGO_RSHB.png
+│   │   │   │   ├── LOGO_SBER.png
+│   │   │   │   ├── LOGO_SOVKOMBANK.png
+│   │   │   │   ├── LOGO_TBANK.png
+│   │   │   │   ├── LOGO_VTB.png
+│   │   │   │   └── background.png
+│   │   │   └── img
+│   │   │       ├── banks
+│   │   │       │   ├── alfabank.png
+│   │   │       │   ├── gazprombank.png
+│   │   │       │   ├── mkb.png
+│   │   │       │   ├── mtsbank.png
+│   │   │       │   ├── pochtabank.png
+│   │   │       │   ├── psb.png
+│   │   │       │   ├── rshb.png
+│   │   │       │   ├── sber.png
+│   │   │       │   ├── sovcombank.png
+│   │   │       │   ├── tbank.png
+│   │   │       │   └── vtb.png
+│   │   │       └── logo.png
+│   │   ├── config
+│   │   │   └── banks.json
+│   │   ├── css
+│   │   │   └── app.css
+│   │   ├── js
+│   │   │   ├── constants
+│   │   │   │   └── config.js
+│   │   │   ├── api.js
+│   │   │   ├── app.js
+│   │   │   ├── banks.js
+│   │   │   ├── logger.js
+│   │   │   └── telegram.js
+│   │   ├── redirect
+│   │   │   ├── index.html
+│   │   │   ├── redirect.css
+│   │   │   └── redirect.js
+│   │   ├── scripts
+│   │   │   ├── modules
+│   │   │   │   ├── animations.js
+│   │   │   │   ├── constants.js
+│   │   │   │   ├── events.js
+│   │   │   │   ├── navigation.js
+│   │   │   │   └── preload.js
+│   │   │   ├── main.js
+│   │   │   └── redirect.js
+│   │   ├── styles
+│   │   │   └── main.css
+│   │   ├── index.html
+│   │   ├── redirect.html
+│   │   └── web.config
 │   ├── assets
 │   │   ├── bg
 │   │   │   └── background.png
@@ -39,6 +131,7 @@ Flow_Lite_bot_WebApp
 │   │   │   ├── LOGO_SOVKOMBANK.png
 │   │   │   ├── LOGO_TBANK.png
 │   │   │   ├── LOGO_VTB.png
+│   │   │   ├── LOGO_нормальный.png
 │   │   │   └── background.png
 │   │   └── img
 │   │       ├── banks
@@ -63,7 +156,9 @@ Flow_Lite_bot_WebApp
 │   │   │   └── config.js
 │   │   ├── api.js
 │   │   ├── app.js
+│   │   ├── asset-version.js
 │   │   ├── banks.js
+│   │   ├── logger.js
 │   │   └── telegram.js
 │   ├── redirect
 │   │   ├── index.html
@@ -88,8 +183,9 @@ Flow_Lite_bot_WebApp
 │   ├── potok-crm.ru_cert.pem
 │   ├── potok-crm.ru_private_key.pem
 │   └── www.potok-crm.ru.p12
+├── banks_links
+│   └── bank_links.xlsx
 ├── .gitattributes
 ├── .gitignore
 ├── export_tree.py
-├── log.txt
 └── project_tree.txt

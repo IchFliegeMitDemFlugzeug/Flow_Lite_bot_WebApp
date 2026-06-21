@@ -37,7 +37,7 @@
     "vtb": {
       "deeplink_ios": "https://online.vtb.ru/i/cell/ppl/{phone.digits10}",
       "deeplink_android": "https://online.vtb.ru/i/cell/ppl/{phone.digits10}",
-      "web": null
+      "web": "https://online.vtb.ru/transfers/transferByPhone?isStandaloneScenario=true&actionType=generalTargetSearch&tab=SWITCH_TO_OP_4808&isForeingNumber=false&isInternalTargetSearch=false&predefinedValues%5BpredefinedPhoneNumber%5D=%2B{phone.d1}%20{phone.d2}{phone.d3}{phone.d4}%20{phone.d5}{phone.d6}{phone.d7}-{phone.d8}{phone.d9}-{phone.d10}{phone.d11}&stage=INPUT"
     },
     "tbank": {
       "deeplink_ios": null,
