@@ -11,7 +11,7 @@
     "id": "tbank",
     "title": "Т-Банк",
     "logo": "assets/img/banks/tbank.png",
-    "supported_identifiers": ["phone"],
+    "supported_identifiers": ["phone", "card"],
     "builder": "tinkoff_phone",
     "notes": "Оплата по номеру телефона в Т-Банк"
   },
